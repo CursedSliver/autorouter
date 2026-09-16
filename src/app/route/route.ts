@@ -163,7 +163,7 @@ function gfdGetsSpell(pool: number, gfdRs: number) {
     }
     for (let m = 7; m >= 0; m--) {
         if (pool & (1 << m) && n++ === count) {
-            return m;
+            return (7 - m);
         }
     }
     return -1;
