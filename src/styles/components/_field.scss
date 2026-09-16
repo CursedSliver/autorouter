@@ -1,0 +1,24 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+.field {
+  display: grid;
+  gap: $space-1;
+
+  &__label {
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+  }
+
+  &__input {
+    @include control-surface;
+    width: 7rem;
+    padding: $space-2 $space-3;
+    font-size: 0.9375rem;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "autorouter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An app that routes Grimoire combos automatically.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "node scripts/build.mjs --serve",
+    "build": "npm run clean && node scripts/build.mjs --prod",
+    "build:watch": "node scripts/build.mjs --watch",
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [
+    "typescript",
+    "esbuild",
+    "sass"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.6",
+    "sass": "^1.104.1",
+    "typescript": "^7.0.2"
+  }
+}

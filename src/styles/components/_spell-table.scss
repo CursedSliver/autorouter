@@ -1,0 +1,128 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+.spell-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+
+  &__caption {
+    padding-bottom: $space-3;
+    font-size: 0.8125rem;
+    color: $color-text-muted;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: $space-2;
+    text-align: center;
+    border-bottom: 1px solid $color-border;
+  }
+
+  thead th {
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: $color-text-muted;
+  }
+
+  &__index {
+    width: 2.5rem;
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: $color-text-muted;
+  }
+
+  &__row:hover {
+    background-color: rgba(91, 140, 255, 0.06);
+  }
+
+  &__toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    vertical-align: middle;
+    appearance: none;
+    cursor: pointer;
+    background-color: $color-surface-raised;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    transition:
+      background-color $duration-base ease,
+      border-color $duration-base ease;
+
+    &::after {
+      content: "";
+      width: 0.5rem;
+      height: 0.25rem;
+      border-bottom: 2px solid $color-bg;
+      border-left: 2px solid $color-bg;
+      transform: rotate(-45deg) scale(0);
+      transition: transform $duration-base ease;
+    }
+
+    &:checked {
+      background-color: $color-accent;
+      border-color: $color-accent;
+
+      &::after {
+        transform: rotate(-45deg) scale(1);
+      }
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__number {
+    @include control-surface;
+    width: 5rem;
+    padding: $space-1 $space-2;
+    font-size: 0.8125rem;
+    text-align: center;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__actions {
+    width: 2.75rem;
+  }
+
+  &__remove {
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 1rem;
+    line-height: 1;
+    color: $color-text-muted;
+    cursor: pointer;
+    background-color: transparent;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    transition:
+      color $duration-base ease,
+      border-color $duration-base ease;
+
+    &:hover {
+      color: $color-danger;
+      border-color: $color-danger;
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__empty {
+    padding: $space-5;
+    color: $color-text-muted;
+  }
+}

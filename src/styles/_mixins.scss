@@ -1,0 +1,28 @@
+@use "variables" as *;
+
+@mixin from($breakpoint) {
+  @media (min-width: $breakpoint) {
+    @content;
+  }
+}
+
+@mixin card($padding: $space-6) {
+  padding: $padding;
+  background-color: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+}
+
+@mixin control-surface {
+  font-family: $font-mono;
+  color: $color-text;
+  background-color: $color-surface-raised;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+}
+
+@mixin focus-ring {
+  outline: 2px solid $color-accent;
+  outline-offset: 2px;
+}

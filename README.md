@@ -1,0 +1,1 @@
+For more information on the project, check out `AGENT.md`.

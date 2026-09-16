@@ -1,0 +1,25 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+.panel {
+  @include card;
+
+  display: grid;
+  gap: $space-4;
+
+  &__heading {
+    font-size: 1.25rem;
+  }
+
+  &__text {
+    color: $color-text-muted;
+  }
+
+  &__body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-4;
+    padding-top: $space-2;
+  }
+}

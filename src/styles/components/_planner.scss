@@ -1,0 +1,230 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+.planner {
+  display: grid;
+  gap: $space-5;
+
+  &__form {
+    @include card;
+    display: grid;
+    gap: $space-4;
+  }
+
+  &__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: $space-3 $space-4;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+    margin-left: auto;
+  }
+
+  &__hint {
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    color: $color-text-muted;
+  }
+
+  &__progress {
+    display: grid;
+    gap: $space-2;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &__progress-label {
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+  }
+
+  &__result {
+    @include card($space-5);
+    display: grid;
+    gap: $space-4;
+
+    &--error {
+      border-color: $color-danger;
+    }
+  }
+
+  &__footer {
+    display: grid;
+    gap: $space-3;
+  }
+
+  &__note,
+  &__error {
+    font-size: 0.8125rem;
+  }
+
+  &__note {
+    color: $color-text-muted;
+
+    &--warn {
+      color: $color-accent-strong;
+    }
+  }
+
+  &__error {
+    color: $color-danger;
+  }
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: $space-4;
+
+  &__label {
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $color-text-muted;
+  }
+
+  &__value {
+    font-family: $font-mono;
+    font-size: 1.25rem;
+    color: $color-text;
+  }
+}
+
+.metrics__item--score .metrics__value {
+  font-size: 2rem;
+  color: $color-accent-strong;
+}
+
+/** The combo can be long ("3BS+EF+CF+CLOT"), so it gets a row of its own. */
+.metrics__item--combo {
+  grid-column: 1 / -1;
+}
+
+.metrics__item--combo .metrics__value {
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+/**
+ * The route as a sequence of action names chained by arrows. Boxed so it reads as
+ * a distinct artifact of the result rather than as another metric.
+ */
+.chain {
+  display: grid;
+  gap: $space-2;
+  padding: $space-4;
+  background-color: $color-surface-raised;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  &__label {
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $color-text-muted;
+  }
+
+  &__steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &__step {
+    font-family: $font-mono;
+    font-size: 0.8125rem;
+    color: $color-text;
+  }
+
+  &__arrow {
+    font-size: 0.875rem;
+    color: $color-accent-strong;
+  }
+
+  &__empty {
+    font-size: 0.8125rem;
+    color: $color-text-muted;
+  }
+}
+
+.warning {
+  display: grid;
+  gap: $space-1;
+  padding: $space-4 $space-5;
+  color: $color-danger;
+  background-color: rgba(255, 107, 129, 0.08);
+  border: 1px solid $color-danger;
+  border-radius: $radius-lg;
+
+  &__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  &__text {
+    font-size: 0.8125rem;
+  }
+}
+
+.meter {
+  height: 0.375rem;
+  overflow: hidden;
+  background-color: $color-surface-raised;
+  border-radius: $radius-full;
+
+  &__fill {
+    height: 100%;
+    background-image: linear-gradient(90deg, $color-accent, $color-accent-strong);
+    transition: width $duration-base ease;
+  }
+}
+
+.progress {
+  height: 0.75rem;
+  overflow: hidden;
+  background-color: $color-surface-raised;
+  border: 1px solid $color-border;
+  border-radius: $radius-full;
+
+  &__fill {
+    width: 0;
+    height: 100%;
+    background-image: linear-gradient(90deg, $color-accent, $color-accent-strong);
+    transition: width $duration-base linear;
+  }
+
+  /** A halted search keeps its last estimate on screen, greyed out. */
+  &--halted &__fill {
+    background-image: linear-gradient(90deg, #4b5563, #9aa3b2);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: $space-1 $space-3;
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  background-color: $color-surface-raised;
+  border: 1px solid $color-border;
+  border-radius: $radius-full;
+}

@@ -1,0 +1,51 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+.button {
+  @include control-surface;
+  padding: $space-2 $space-4;
+  font-size: 0.875rem;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition:
+    background-color $duration-base ease,
+    border-color $duration-base ease,
+    transform $duration-base ease;
+
+  &:hover {
+    background-color: $color-border;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &--primary {
+    font-weight: 600;
+    color: $color-bg;
+    background-color: $color-accent;
+    border-color: $color-accent;
+
+    &:hover {
+      background-color: $color-accent-strong;
+      border-color: $color-accent-strong;
+    }
+  }
+
+  /** What the run button becomes while a search is in flight. */
+  &--halt {
+    font-weight: 600;
+    color: #ffffff;
+    background-color: #000000;
+    border-color: #3a3a3a;
+
+    &:hover {
+      background-color: #181818;
+      border-color: #565656;
+    }
+  }
+}

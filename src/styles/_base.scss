@@ -1,0 +1,109 @@
+@use "sass:color";
+@use "variables" as *;
+@use "mixins" as *;
+
+:root {
+  color-scheme: dark;
+}
+
+/**
+ * The backdrop lives on the root element and is anchored to the viewport: the
+ * page is taller than the viewport, so a body-sized backdrop would tile over the
+ * scrolled region. A solid color underneath keeps the page dark everywhere and
+ * `no-repeat` makes a stray tile impossible.
+ */
+html {
+  min-height: 100%;
+  background-color: $color-bg;
+  background-image:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(91, 140, 255, 0.22), transparent 60%),
+    radial-gradient(50rem 32rem at 100% 0%, rgba(138, 169, 255, 0.14), transparent 55%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body {
+  min-height: 100dvh;
+  padding: $space-6 $space-4;
+  font-family: $font-sans;
+  font-size: 1rem;
+  color: $color-text;
+  background-color: transparent;
+
+  @include from($breakpoint-md) {
+    padding: $space-7 $space-6;
+  }
+}
+
+#app {
+  display: flex;
+  justify-content: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+code {
+  padding: 0.1em 0.4em;
+  font-family: $font-mono;
+  font-size: 0.875em;
+  color: $color-accent-strong;
+  background-color: rgba(138, 169, 255, 0.12);
+  border-radius: $radius-sm;
+}
+
+.app {
+  width: 100%;
+  max-width: 62rem;
+  display: grid;
+  gap: $space-6;
+
+  &__header {
+    display: grid;
+    gap: $space-3;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    width: fit-content;
+    padding: $space-1 $space-3;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $color-accent-strong;
+    background-color: color.change($color-accent, $alpha: 0.14);
+    border: 1px solid color.change($color-accent, $alpha: 0.35);
+    border-radius: $radius-full;
+
+    &::before {
+      content: "";
+      width: 1rem;
+      height: 1rem;
+      background-image: url("../assets/logo.svg");
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+  }
+
+  &__title {
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  &__subtitle {
+    max-width: 44rem;
+    color: $color-text-muted;
+  }
+}
