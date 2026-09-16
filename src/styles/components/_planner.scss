@@ -114,8 +114,9 @@
 }
 
 /**
- * The route as a sequence of action names chained by arrows. Boxed so it reads as
- * a distinct artifact of the result rather than as another metric.
+ * The route as a sequence of actions chained by arrows, each wearing the magic it
+ * leaves behind. Boxed so it reads as a distinct artifact of the result rather
+ * than as another metric.
  */
 .chain {
   display: grid;
@@ -126,10 +127,20 @@
   border-radius: $radius-md;
 
   &__label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-3;
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: $color-text-muted;
+  }
+
+  &__legend {
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   &__steps {
@@ -143,6 +154,13 @@
     font-family: $font-mono;
     font-size: 0.8125rem;
     color: $color-text;
+    white-space: nowrap;
+  }
+
+  &__magic {
+    margin-left: $space-1;
+    font-size: 0.75rem;
+    color: $color-text-muted;
   }
 
   &__arrow {

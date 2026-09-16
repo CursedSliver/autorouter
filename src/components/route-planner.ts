@@ -34,6 +34,13 @@ const finalCombo = (result: RouteSnapshot): string => {
 };
 
 /**
+ * The magic a step leaves behind. GFD resolves can leave a half point behind, so
+ * only values that actually have a fraction get a decimal.
+ */
+const magicLabel = (value: number): string =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+/**
  * The search is a long synchronous loop, so it runs in a worker
  * (`components/route-worker.ts`) where it cannot block the page: the UI only
  * reads progress messages and, to halt, terminates the worker. The URL points at
@@ -190,7 +197,10 @@ export function createRoutePlanner(): HTMLElement {
     const steps =
       result.actions.length > 0
         ? result.actions
-            .map((action) => `<span class="chain__step">${action}</span>`)
+            .map(
+              (step) =>
+                `<span class="chain__step">${step.action}<span class="chain__magic">(${magicLabel(step.magic)})</span></span>`,
+            )
             .join('<span class="chain__arrow" aria-hidden="true">→</span>')
         : '<span class="chain__empty">No actions taken.</span>';
 
@@ -211,7 +221,10 @@ export function createRoutePlanner(): HTMLElement {
         </div>
       </dl>
       <div class="chain">
-        <p class="chain__label">Actions taken</p>
+        <p class="chain__label">
+          <span>Actions taken</span>
+          <span class="chain__legend">magic after each action</span>
+        </p>
         <div class="chain__steps">${steps}</div>
       </div>
       <div class="planner__footer">

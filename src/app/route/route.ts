@@ -189,6 +189,11 @@ interface GFDPendingResolve {
     chainCost: number;
     spell: SpellIndices;
 }
+/** One action of a route, with the magic the state holds once it has been applied. */
+export interface RouteStep {
+    action: string;
+    magic: number;
+}
 export class RouteState {
     constructor(public parent: RouteState | null, public spells: Spell[], public currentMagic: number, public spellIndex: number, public metamax: number, public refills: 0 | 1 | 2) {
 
@@ -311,16 +316,21 @@ export class RouteState {
     currentValue() {
         return this.bs + (this.cf?1.5:0) + (this.ef?1.5:0) - (this.clot?0.1:0);
     }
-    history() {
-        const names: string[] = [];
+    /**
+     * The actions taken to reach this state, oldest first: the route so far. Each
+     * step carries the magic left behind by its action, so the last step always
+     * agrees with this state's own `currentMagic`.
+     */
+    history(): RouteStep[] {
+        const steps: RouteStep[] = [];
         let pointer: RouteState | null = this;
         while (pointer) {
             if (pointer.action !== null) {
-                names.push(pointer.action);
+                steps.push({ action: pointer.action, magic: pointer.currentMagic });
             }
             pointer = pointer.parent;
         }
-        return names.reverse();
+        return steps.reverse();
     }
     indexedParent(spellIndex: number): RouteState | null {
         let pointer: RouteState = this;

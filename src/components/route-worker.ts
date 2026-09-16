@@ -6,7 +6,7 @@
  * search cannot read a "stop" message, so there is nothing to negotiate.
  */
 import route from "../app/route/route";
-import type { RouteProgress, Spell } from "../app/route/route";
+import type { RouteProgress, RouteStep, Spell } from "../app/route/route";
 
 /** A search to run. `Spell[]` is plain data, so it survives structured cloning. */
 export interface RouteRequest {
@@ -28,8 +28,8 @@ export interface RouteSnapshot {
   cf: boolean;
   ef: boolean;
   clot: boolean;
-  /** Names of the actions the best route takes, oldest first. */
-  actions: string[];
+  /** The actions the best route takes, oldest first, each with the magic it leaves. */
+  actions: RouteStep[];
   /** Time the search itself took, in milliseconds. */
   elapsed: number;
 }
