@@ -1,1 +1,1 @@
-For more information on the project, check out `AGENT.md`.
+This is an autorouter that automatically routes cookie clicker combos.
