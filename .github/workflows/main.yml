@@ -19,10 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,24 +28,51 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          # package.json pins what the build needs: engines.node >= 20.19.0
+          node-version-file: package.json
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build # Ensure this creates your dist/ folder
-
       - name: Setup Pages
+        id: pages
         uses: actions/configure-pages@v5
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # scripts/build.mjs bundles src/ and mirrors public/ into dist/.
+      - name: Build
+        run: npm run build
+
+      # public/index.html and public/manifest.webmanifest reference assets from
+      # the site root ("/app.js", "/styles.css", ...), but a project site is
+      # served from /<repo>/, so those URLs have to be prefixed with the base
+      # path Pages reports. It is empty for a user/org site or a custom domain,
+      # in which case the URLs are left as they are.
+      - name: Rewrite root-relative URLs for the Pages base path
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          base="${BASE_PATH%/}"
+          for file in dist/index.html dist/manifest.webmanifest; do
+            sed -i "s|\"/|\"${base}/|g" "$file"
+          done
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           # This is the key part: upload only the dist folder
-          path: './dist'
+          path: "./dist"
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
