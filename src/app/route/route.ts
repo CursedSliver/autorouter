@@ -320,6 +320,20 @@ export const Actions: Action[] = [
         }
     },
     {
+        name: 'fthof-none',
+        invoke: state => {
+            state.castSpell(10, 0.6);
+            state.onscreens++;
+        },
+        able: state => state.currentMagic >= state.getCost(10, 0.6),
+        polish: {
+            text: 'Cast FtHoF',
+            icon: [22, 11, 'icons.png'],
+            towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic, lvl),
+            color: '#fdd236'
+        }
+    },
+    {
         name: 'st',
         invoke: state => state.castSpell(8, 0.2),
         gfdCost: state => state.getCost(8, 0.2),
