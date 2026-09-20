@@ -185,6 +185,15 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
         }
         stateIterator = stateIterator.parent;
     }
+    // A season persists until it is changed, so a switch to the season an earlier
+    // switch already set is redundant: keep only the switches that change it.
+    let currentSeason: string | null = null;
+    list = list.filter((action) => {
+        if (!action.raw.startsWith('season-')) { return true; }
+        if (action.raw === currentSeason) { return false; }
+        currentSeason = action.raw;
+        return true;
+    });
     if (!list.length) {
         return {
             actions: [],
