@@ -99,7 +99,7 @@ export function createSaveImport(handlers: SaveImportHandlers): SaveImportBox {
       return;
     }
 
-    if (isSeed && (forced === null || forced <= 0)) {
+    if (isSeed && (forced === null || forced < 0)) {
       warn('A bare seed needs a positive "Spells casted all time" — saves carry their own count.');
 
       return;
