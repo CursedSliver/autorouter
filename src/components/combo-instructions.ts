@@ -31,8 +31,14 @@ const PAD = 14;
  * and their labels, so neither is clipped by the panel border.
  */
 const SIDE_ROOM = 46;
-/** Distance from a box edge to an additional arrow's lane. */
+/** Distance from a box edge to the nearest additional arrow lane. */
 const LANE_GAP = 6;
+/** Distance between two stacked lanes, so their dashes cannot touch. */
+const LANE_SPACING = 8;
+/** Room kept beyond the outermost lane, so a line never sits on the border. */
+const LANE_MARGIN = 5;
+/** Room kept between the two lane groups, on either side of the row rule. */
+const LANE_DIVIDER_SEP = 10;
 /** Arrowhead size, in pixels. */
 const HEAD = 5;
 /** Gap left between a default arrow's ends and the boxes it connects. */
@@ -41,7 +47,7 @@ const ARROW_INSET = 7;
 const FALLBACK_WIDTH = 960;
 /** The colour of the chain of default arrows. */
 const DEFAULT_ARROW_COLOR = "#cfe0ff";
-/** Lane colours, the first a faded yellow; overlapping arrows step down the list. */
+/** Lane colours, the first a faded yellow; each lane further out steps down. */
 const LANE_COLORS = ["#ffd500", "#ff8f3f", "#ff5d8f", "#4dd4ff", "#8bff6b", "#c08bff"];
 /** How far two runs must overlap before they count as sharing a lane. */
 const MIN_OVERLAP = 3;
@@ -74,12 +80,30 @@ interface Segment {
   dashOffset?: number;
 }
 
-/** A run along a row's lane, used to tell when two additional arrows collide. */
+/**
+ * A run along a row's lane. Two runs only collide when they share the row, the
+ * side and the lane, and their x ranges overlap; a lane is what keeps arrows
+ * that would otherwise be drawn on top of each other apart.
+ */
 interface LaneRun {
   row: number;
   side: 0 | 1;
+  lane: number;
   x1: number;
   x2: number;
+}
+
+/** Where an arrow travels on a side, before its lanes are picked. */
+type RouteRun = Omit<LaneRun, "side" | "lane">;
+
+/** An additional arrow, resolved to a lane on every row it crosses. */
+interface PlacedArrow {
+  runs: LaneRun[];
+  /** The x the arrow leaves its source box at. */
+  sourceX: number;
+  /** The x the arrow meets its target box at. */
+  targetX: number;
+  color: string;
 }
 
 interface Layout {
@@ -151,8 +175,22 @@ function withAlpha(color: string, alpha: number): string {
  * read. Arrows between boxes on the same row are horizontal; an arrow whose
  * target is on the next row leaves the board's right edge and re-enters at the
  * left of the next row, keeping only the head at the target.
+ *
+ * An additional arrow pairs a GFD cast with the resolve that completes it and
+ * travels in a lane just off the box edges. It takes the nearest lane that is
+ * free on every row it crosses, so two arrows sharing a stretch of rows are
+ * stacked a step apart instead of drawn over each other, and a row grows taller
+ * to hold the lanes it carries. Each arrow goes to the side that crowds it less,
+ * then to the side used less often, so above and below stay balanced.
+ *
+ * With `showAdditional` false the additional arrows are not placed at all and
+ * every row collapses to the height it would have without them.
  */
-function layout(actions: readonly PolishedAction[], width: number): Layout {
+function layout(
+  actions: readonly PolishedAction[],
+  width: number,
+  showAdditional: boolean,
+): Layout {
   const count = actions.length;
   const usable = Math.max(width - SIDE_ROOM * 2, BOX_W);
   const perRow = Math.max(1, Math.floor((usable + MIN_BOX_GAP) / (BOX_W + MIN_BOX_GAP)));
@@ -164,42 +202,165 @@ function layout(actions: readonly PolishedAction[], width: number): Layout {
   const leftPad = Math.max(SIDE_ROOM, (width - contentWidth) / 2);
   const rows = Math.max(1, Math.ceil(count / perRow));
   const boardWidth = Math.max(width, contentWidth + SIDE_ROOM * 2);
-  const boardHeight = PAD * 2 + rows * BOX_H + (rows - 1) * ROW_GAP;
   const rightEdge = boardWidth - 2;
   const leftEdge = 2;
 
-  const boxAt = (index: number): Point & { row: number } => {
-    const row = Math.floor(index / perRow);
-    const column = index % perRow;
+  const boxRow = (index: number): number => Math.floor(index / perRow);
+  const boxX = (index: number): number => leftPad + (index % perRow) * (BOX_W + gap);
 
-    return { x: leftPad + column * (BOX_W + gap), y: PAD + row * (BOX_H + ROW_GAP), row };
-  };
+  // Every additional arrow, resolved to a lane on each row it crosses but not
+  // yet to a y: the row tops depend on how many lanes the rows end up carrying.
+  const placed: PlacedArrow[] = [];
+  const sideUsage: [number, number] = [0, 0];
 
-  const rowTop = (row: number): number => PAD + row * (BOX_H + ROW_GAP);
-  const rowBottom = (row: number): number => rowTop(row) + BOX_H;
-  const rowCenter = (row: number): number => rowTop(row) + BOX_H / 2;
+  if (showAdditional) {
+    for (let index = 0; index < count; index++) {
+      const target = actions[index]!.additionalArrow;
+
+      if (target < 0 || target >= count || target === index) continue;
+
+      const low = Math.min(index, target);
+      const high = Math.max(index, target);
+      const fromRow = boxRow(low);
+      const toRow = boxRow(high);
+      const sourceX = boxX(low) + BOX_W / 2;
+      const targetX = boxX(high) + BOX_W / 2;
+
+      /** Where an arrow on a side would travel, before its lanes are picked. */
+      const routeOn = (): RouteRun[] => {
+        if (fromRow === toRow) {
+          return [{ row: fromRow, x1: Math.min(sourceX, targetX), x2: Math.max(sourceX, targetX) }];
+        }
+
+        const route: RouteRun[] = [
+          { row: fromRow, x1: Math.min(sourceX, rightEdge), x2: Math.max(sourceX, rightEdge) },
+        ];
+
+        // Cross every row in between, so the arrow always reappears on the row
+        // directly below instead of jumping straight to a far-away target row.
+        for (let row = fromRow + 1; row < toRow; row++) {
+          route.push({ row, x1: leftEdge, x2: rightEdge });
+        }
+
+        route.push({
+          row: toRow,
+          x1: Math.min(leftEdge, targetX),
+          x2: Math.max(leftEdge, targetX),
+        });
+
+        return route;
+      };
+
+      /** The nearest lane on the run's row that no other arrow already holds. */
+      const laneFor = (side: 0 | 1, run: RouteRun): number => {
+        for (let lane = 0; ; lane++) {
+          const taken = placed.some((arrow) =>
+            arrow.runs.some(
+              (other) =>
+                other.row === run.row &&
+                other.side === side &&
+                other.lane === lane &&
+                Math.min(other.x2, run.x2) - Math.max(other.x1, run.x1) > MIN_OVERLAP,
+            ),
+          );
+
+          if (!taken) return lane;
+        }
+      };
+
+      const plan = (side: 0 | 1): LaneRun[] =>
+        routeOn().map((run) => ({ ...run, side, lane: laneFor(side, run) }));
+
+      const below = plan(0);
+      const above = plan(1);
+      const crowding = (runs: LaneRun[]): number =>
+        runs.reduce((total, run) => total + run.lane, 0);
+      const belowCrowding = crowding(below);
+      const aboveCrowding = crowding(above);
+      // The emptier side wins; on a tie the side used less often, and on a full
+      // tie the lane below, which is the more common resolve.
+      const side: 0 | 1 =
+        belowCrowding < aboveCrowding
+          ? 0
+          : aboveCrowding < belowCrowding
+            ? 1
+            : sideUsage[0] <= sideUsage[1]
+              ? 0
+              : 1;
+      const chosen = side === 0 ? below : above;
+      const depth = chosen.reduce((deepest, run) => Math.max(deepest, run.lane), 0);
+
+      sideUsage[side] += 1;
+      placed.push({
+        runs: chosen,
+        sourceX,
+        targetX,
+        // Each lane further out wears the next colour, so a stack stays readable.
+        color: LANE_COLORS[depth % LANE_COLORS.length]!,
+      });
+    }
+  }
+
+  // How far a row's lanes reach past its edge, and so how much room the border or
+  // the gap beside it has to hold.
+  const laneSpan = (lanes: number): number =>
+    lanes === 0 ? 0 : LANE_GAP + (lanes - 1) * LANE_SPACING + LANE_MARGIN;
+
+  const lanesAbove = new Array<number>(rows).fill(0);
+  const lanesBelow = new Array<number>(rows).fill(0);
+
+  for (const arrow of placed) {
+    for (const run of arrow.runs) {
+      if (run.side === 0) lanesBelow[run.row] = Math.max(lanesBelow[run.row]!, run.lane + 1);
+      else lanesAbove[run.row] = Math.max(lanesAbove[run.row]!, run.lane + 1);
+    }
+  }
+
+  // Row tops and the rules between them: a gap holds the lanes reaching down from
+  // the row above and up from the row below, with the rule kept between them.
+  const rowTop: number[] = [];
+  const rowBottom: number[] = [];
+  const dividers: number[] = [];
+  let cursor = PAD + laneSpan(lanesAbove[0]!);
+
+  for (let row = 0; row < rows; row++) {
+    rowTop.push(cursor);
+    rowBottom.push(cursor + BOX_H);
+
+    if (row + 1 === rows) break;
+
+    const below = laneSpan(lanesBelow[row]!);
+    const above = laneSpan(lanesAbove[row + 1]!);
+    const between = Math.max(ROW_GAP, below + above + LANE_DIVIDER_SEP);
+
+    dividers.push(cursor + BOX_H + below + (between - below - above) / 2);
+    cursor += BOX_H + between;
+  }
+
+  const boardHeight = rowBottom[rows - 1]! + laneSpan(lanesBelow[rows - 1]!) + PAD;
+
+  const rowCenter = (row: number): number => rowTop[row]! + BOX_H / 2;
+  const laneY = (run: LaneRun): number =>
+    run.side === 0
+      ? rowBottom[run.row]! + LANE_GAP + run.lane * LANE_SPACING
+      : rowTop[run.row]! - LANE_GAP - run.lane * LANE_SPACING;
 
   const segments: Segment[] = [];
   const labels: Label[] = [];
-  const dividers: number[] = [];
-
-  for (let row = 0; row < rows - 1; row++) {
-    dividers.push(rowBottom(row) + ROW_GAP / 2);
-  }
 
   // The default chain: one arrow from each action to the next, labelled with the
   // change in tower count when there is one.
   for (let index = 0; index < count - 1; index++) {
-    const from = boxAt(index);
-    const to = boxAt(index + 1);
+    const fromRow = boxRow(index);
+    const toRow = boxRow(index + 1);
     const delta = actions[index + 1]!.towerCount - actions[index]!.towerCount;
     const label =
       delta === 0 ? null : `${delta > 0 ? "+" : "-"}${Math.abs(delta).toLocaleString("en-US")}`;
 
-    if (from.row === to.row) {
-      const y = rowCenter(from.row);
-      const x1 = from.x + BOX_W + ARROW_INSET;
-      const x2 = to.x - ARROW_INSET;
+    if (fromRow === toRow) {
+      const y = rowCenter(fromRow);
+      const x1 = boxX(index) + BOX_W + ARROW_INSET;
+      const x2 = boxX(index + 1) - ARROW_INSET;
 
       segments.push({
         points: [
@@ -220,202 +381,112 @@ function layout(actions: readonly PolishedAction[], width: number): Layout {
           anchor: "middle",
         });
       }
-    } else {
-      const y = rowCenter(from.row);
-      const nextY = rowCenter(to.row);
 
+      continue;
+    }
+
+    const y = rowCenter(fromRow);
+    const nextY = rowCenter(toRow);
+
+    segments.push({
+      points: [
+        { x: boxX(index) + BOX_W + ARROW_INSET, y },
+        { x: rightEdge, y },
+      ],
+      head: null,
+      color: DEFAULT_ARROW_COLOR,
+      opacity: 0.85,
+    });
+    segments.push({
+      points: [
+        { x: leftEdge, y: nextY },
+        { x: boxX(index + 1) - ARROW_INSET, y: nextY },
+      ],
+      head: { x: boxX(index + 1) - ARROW_INSET, y: nextY },
+      color: DEFAULT_ARROW_COLOR,
+      opacity: 0.85,
+    });
+
+    if (label) {
+      // Anchor to the board edge so a long count cannot spill out of the panel.
+      labels.push({
+        x: rightEdge - 4,
+        y: y - LABEL_LIFT,
+        text: label,
+        color: DEFAULT_ARROW_COLOR,
+        anchor: "end",
+      });
+    }
+  }
+
+  // Fold each additional arrow's runs into the polylines that draw it, one
+  // segment per row so each can sit in its own lane. The runs carry no
+  // arrowhead: one would land on a box edge and be clipped by it.
+  placed.forEach((arrow, arrowIndex) => {
+    const runs = arrow.runs;
+    const source = runs[0]!;
+    const target = runs[runs.length - 1]!;
+    // Shift each arrow's dashes a little, so two lanes next to each other do not
+    // march in step and read as one thick line.
+    const dashOffset = (arrowIndex * 4) % 11;
+    const push = (points: Point[]): void => {
       segments.push({
-        points: [
-          { x: from.x + BOX_W + ARROW_INSET, y },
-          { x: rightEdge, y },
-        ],
+        points,
         head: null,
-        color: DEFAULT_ARROW_COLOR,
-        opacity: 0.85,
+        color: arrow.color,
+        opacity: 0.55,
+        dashed: true,
+        dashOffset,
       });
-      segments.push({
-        points: [
-          { x: leftEdge, y: nextY },
-          { x: to.x - ARROW_INSET, y: nextY },
-        ],
-        head: { x: to.x - ARROW_INSET, y: nextY },
-        color: DEFAULT_ARROW_COLOR,
-        opacity: 0.85,
-      });
-
-      if (label) {
-        // Anchor to the board edge so a long count cannot spill out of the panel.
-        labels.push({
-          x: rightEdge - 4,
-          y: y - LABEL_LIFT,
-          text: label,
-          color: DEFAULT_ARROW_COLOR,
-          anchor: "end",
-        });
-      }
-    }
-  }
-
-  // The additional arrows. Each pairs a GFD cast with the resolve that completes
-  // it; the pair is drawn in sequence order, whichever end stored the reference,
-  // so the arrowhead always lands on the later action. Each chooses the side that
-  // collides with the fewest arrows already placed; when it still collides, it
-  // borrows a contrasting colour so the tangle stays readable.
-  const placed: { runs: LaneRun[]; color: string }[] = [];
-
-  for (let index = 0; index < count; index++) {
-    const target = actions[index]!.additionalArrow;
-
-    if (target < 0 || target >= count || target === index) continue;
-
-    const from = boxAt(Math.min(index, target));
-    const to = boxAt(Math.max(index, target));
-    const sourceX = from.x + BOX_W / 2;
-    const targetX = to.x + BOX_W / 2;
-
-    const build = (side: 0 | 1): { runs: LaneRun[]; segments: Segment[] } => {
-      const runs: LaneRun[] = [];
-      const built: Segment[] = [];
-      /** The y the arrow travels at on a given row, just off its box edge. */
-      const laneAt = (row: number): number =>
-        side === 0 ? rowBottom(row) + LANE_GAP : rowTop(row) - LANE_GAP;
-      const sourceEdge = side === 0 ? rowBottom(from.row) : rowTop(from.row);
-
-      if (from.row === to.row) {
-        runs.push({
-          row: from.row,
-          side,
-          x1: Math.min(sourceX, targetX),
-          x2: Math.max(sourceX, targetX),
-        });
-        // No arrowhead: one would sit on the box edge and be clipped by it.
-        built.push({
-          points: [
-            { x: sourceX, y: sourceEdge },
-            { x: sourceX, y: laneAt(from.row) },
-            { x: targetX, y: laneAt(from.row) },
-            { x: targetX, y: sourceEdge },
-          ],
-          head: null,
-          color: "",
-          opacity: 0.55,
-        });
-      } else {
-        const targetEdge = side === 0 ? rowBottom(to.row) : rowTop(to.row);
-
-        // Leave the source row at its right edge.
-        runs.push({
-          row: from.row,
-          side,
-          x1: Math.min(sourceX, rightEdge),
-          x2: Math.max(sourceX, rightEdge),
-        });
-        built.push({
-          points: [
-            { x: sourceX, y: sourceEdge },
-            { x: sourceX, y: laneAt(from.row) },
-            { x: rightEdge, y: laneAt(from.row) },
-          ],
-          head: null,
-          color: "",
-          opacity: 0.55,
-        });
-
-        // Cross every row in between, so the arrow always reappears on the row
-        // directly below instead of jumping straight to a far-away target row.
-        for (let row = from.row + 1; row < to.row; row++) {
-          runs.push({ row, side, x1: leftEdge, x2: rightEdge });
-          built.push({
-            points: [
-              { x: leftEdge, y: laneAt(row) },
-              { x: rightEdge, y: laneAt(row) },
-            ],
-            head: null,
-            color: "",
-            opacity: 0.55,
-          });
-        }
-
-        // Enter the target row from the left and reach the target box.
-        runs.push({
-          row: to.row,
-          side,
-          x1: Math.min(leftEdge, targetX),
-          x2: Math.max(leftEdge, targetX),
-        });
-        built.push({
-          points: [
-            { x: leftEdge, y: laneAt(to.row) },
-            { x: targetX, y: laneAt(to.row) },
-            { x: targetX, y: targetEdge },
-          ],
-          head: null,
-          color: "",
-          opacity: 0.55,
-        });
-      }
-
-      return { runs, segments: built };
     };
 
-    const overlapping = (runs: LaneRun[]): number[] => {
-      const hits: number[] = [];
+    const sourceEdge = source.side === 0 ? rowBottom[source.row]! : rowTop[source.row]!;
 
-      placed.forEach((other, otherIndex) => {
-        const collides = other.runs.some((a) =>
-          runs.some(
-            (b) =>
-              a.row === b.row &&
-              a.side === b.side &&
-              Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1) > MIN_OVERLAP,
-          ),
-        );
+    if (runs.length === 1) {
+      const lane = laneY(source);
 
-        if (collides) hits.push(otherIndex);
-      });
+      push([
+        { x: arrow.sourceX, y: sourceEdge },
+        { x: arrow.sourceX, y: lane },
+        { x: arrow.targetX, y: lane },
+        { x: arrow.targetX, y: sourceEdge },
+      ]);
 
-      return hits;
-    };
-
-    const below = build(0);
-    const above = build(1);
-    const belowHits = overlapping(below.runs);
-    const aboveHits = overlapping(above.runs);
-    // An arrow whose target is on a lower row wants to leave the bottom of its
-    // box, so the above lane carries a small penalty: it only wins when it is
-    // clearly less crowded, never on a tie. Ties keep the arrow below, which is
-    // the more common resolve.
-    const abovePenalty = from.row === to.row ? 0 : 1;
-    const chosen = belowHits.length <= aboveHits.length + abovePenalty ? below : above;
-    const hits = chosen === below ? belowHits : aboveHits;
-
-    let color = LANE_COLORS[0]!;
-
-    if (hits.length > 0) {
-      const taken = new Set(hits.map((hit) => placed[hit]!.color));
-      color =
-        LANE_COLORS.find((candidate) => !taken.has(candidate)) ??
-        LANE_COLORS[hits.length % LANE_COLORS.length]!;
+      return;
     }
 
-    // Shift each lane's dashes a little, so two arrows sharing a lane interleave
-    // instead of one drawing exactly over the other.
-    const dashOffset = (placed.length * 4) % 11;
+    // Leave the source row at its right edge.
+    const sourceLane = laneY(source);
 
-    for (const segment of chosen.segments) {
-      segment.color = color;
-      segment.dashed = true;
-      segment.dashOffset = dashOffset;
-      segments.push(segment);
+    push([
+      { x: arrow.sourceX, y: sourceEdge },
+      { x: arrow.sourceX, y: sourceLane },
+      { x: rightEdge, y: sourceLane },
+    ]);
+
+    for (let index = 1; index < runs.length - 1; index++) {
+      const lane = laneY(runs[index]!);
+
+      push([
+        { x: leftEdge, y: lane },
+        { x: rightEdge, y: lane },
+      ]);
     }
 
-    placed.push({ runs: chosen.runs, color });
-  }
+    // Enter the target row from the left and reach the target box.
+    const targetLane = laneY(target);
+
+    push([
+      { x: leftEdge, y: targetLane },
+      { x: arrow.targetX, y: targetLane },
+      { x: arrow.targetX, y: target.side === 0 ? rowBottom[target.row]! : rowTop[target.row]! },
+    ]);
+  });
 
   return {
     width: boardWidth,
     height: boardHeight,
-    boxes: actions.map((_, index) => boxAt(index)),
+    boxes: actions.map((_, index) => ({ x: boxX(index), y: rowTop[boxRow(index)]! })),
     dividers,
     segments,
     labels,
@@ -466,10 +537,19 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
   element.innerHTML = `
     <div class="ci__header">
       <span class="ci__combo-value" data-combo>none</span>
-      <label class="ci__level">
-        <span class="ci__level-text">tower level:</span>
-        <select class="ci__level-select" data-level>${levelOptions}</select>
-      </label>
+      <div class="ci__controls">
+        <label class="ci__switch">
+          <input class="ci__switch-input" type="checkbox" data-dashed checked />
+          <span class="ci__switch-track" aria-hidden="true">
+            <span class="ci__switch-thumb"></span>
+          </span>
+          <span class="ci__switch-text">dashed lines</span>
+        </label>
+        <label class="ci__level">
+          <span class="ci__level-text">tower level:</span>
+          <select class="ci__level-select" data-level>${levelOptions}</select>
+        </label>
+      </div>
     </div>
     <div class="ci__scroll" data-scroll>
       <div class="ci__board" role="list" data-board></div>
@@ -477,18 +557,24 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
     <p class="ci__hint">
       Follow the boxes in order. 
       "Resolve GFD" indicates waiting for a GFD cast's selected spell to be casted after casting the GFD.
+      <span data-dashed-hint>
       The faded dashed lines indicate that all actions in between two linked boxes
       must be completed in <b>1 second or less</b>.
+      </span>
     </p>
   `;
 
   const comboValue = element.querySelector<HTMLElement>("[data-combo]")!;
   const levelSelect = element.querySelector<HTMLSelectElement>("[data-level]")!;
+  const dashedInput = element.querySelector<HTMLInputElement>("[data-dashed]")!;
+  const dashedHint = element.querySelector<HTMLElement>("[data-dashed-hint]")!;
   const scroll = element.querySelector<HTMLElement>("[data-scroll]")!;
   const board = element.querySelector<HTMLElement>("[data-board]")!;
 
   let current: ComboInstructionsData | null = null;
   let lastWidth = -1;
+  /** Whether the additional arrows are drawn; off collapses the rows. */
+  let showAdditional = dashedInput.checked;
 
   const paint = (): void => {
     if (current === null) return;
@@ -507,7 +593,7 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
 
     // The wrapper has no padding, so its width is the board's available width.
     const width = scroll.clientWidth > 0 ? scroll.clientWidth : FALLBACK_WIDTH;
-    const result = layout(current.actions, width);
+    const result = layout(current.actions, width, showAdditional);
 
     lastWidth = width;
     board.style.width = `${result.width}px`;
@@ -563,6 +649,7 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
     current = data;
     comboValue.textContent = data.combo;
     levelSelect.value = String(clampLevel(data.towerLevel));
+    dashedHint.hidden = !showAdditional;
     paint();
   };
 
@@ -582,6 +669,14 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
 
   levelSelect.addEventListener("change", () => {
     setTowerLevel(Number.parseInt(levelSelect.value, 10));
+  });
+
+  // Hiding the additional arrows takes their lanes away with them, so the rows
+  // pack back down to the height they have with none.
+  dashedInput.addEventListener("change", () => {
+    showAdditional = dashedInput.checked;
+    dashedHint.hidden = !showAdditional;
+    paint();
   });
 
   // Repack the boxes when the panel changes width: the rows are a function of it.

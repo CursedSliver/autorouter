@@ -4,9 +4,10 @@
 
 /**
  * The combo-instructions panel: a bordered box that owns its header (the combo
- * shorthand and the assumed tower level) and the board of action boxes joined by
- * arrows. The board is sized in pixels by the component, so it can be centred
- * while the arrows stay aligned to the boxes they connect.
+ * shorthand, the dashed-lines switch and the assumed tower level) and the board
+ * of action boxes joined by arrows. The board is sized in pixels by the
+ * component, so it can be centred while the arrows stay aligned to the boxes
+ * they connect.
  */
 .ci {
   display: grid;
@@ -32,10 +33,85 @@
     overflow-wrap: anywhere;
   }
 
+  /** The header's controls, kept together at the far right of the combo name. */
+  &__controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-4;
+  }
+
   &__level {
     display: inline-flex;
     align-items: center;
     gap: $space-2;
+  }
+
+  /**
+   * The dashed-lines switch: a small track whose thumb slides across when the
+   * additional arrows are drawn. Turning it off hides them and the rows repack.
+   */
+  &__switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    cursor: pointer;
+  }
+
+  /** Hidden but focusable: the track beside it is the visible control. */
+  &__switch-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  &__switch-track {
+    position: relative;
+    flex: none;
+    width: 1.75rem;
+    height: 0.875rem;
+    background-color: $color-surface-raised;
+    border: 1px solid $color-border;
+    border-radius: $radius-full;
+    transition:
+      background-color $duration-base ease,
+      border-color $duration-base ease;
+  }
+
+  &__switch-thumb {
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: $color-text-muted;
+    border-radius: $radius-full;
+    transition:
+      transform $duration-base ease,
+      background-color $duration-base ease;
+  }
+
+  &__switch-input:checked + &__switch-track {
+    background-color: color.change($color-accent, $alpha: 0.3);
+    border-color: $color-accent;
+  }
+
+  &__switch-input:checked + &__switch-track &__switch-thumb {
+    background-color: $color-accent-strong;
+    transform: translateX(0.875rem);
+  }
+
+  &__switch-input:focus-visible + &__switch-track {
+    @include focus-ring;
+  }
+
+  &__switch-text {
+    font-size: 0.75rem;
+    color: $color-text-muted;
   }
 
   &__level-text {
