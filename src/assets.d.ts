@@ -27,3 +27,9 @@ declare module "*.webp" {
   const src: string;
   export default src;
 }
+
+/** Markdown is loaded as text (see the `.md` loader in `scripts/build.mjs`). */
+declare module "*.md" {
+  const text: string;
+  export default text;
+}

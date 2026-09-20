@@ -11,14 +11,16 @@ import * as esbuild from "esbuild";
  */
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(rootDir, "dist", "test"); // dist/ is gitignored build output
-const outFile = path.join(outDir, "route.test.mjs");
+const entries = ["route.test.ts", "microrouter.test.ts"];
 
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
 await esbuild.build({
-  entryPoints: [path.join(rootDir, "src", "app", "tests", "route.test.ts")],
-  outfile: outFile,
+  entryPoints: entries.map((name) => path.join(rootDir, "src", "app", "tests", name)),
+  outdir: outDir,
+  // esbuild names the chunks after the entry, so ask for the .mjs the runner loads.
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   platform: "node",
   format: "esm",
@@ -27,9 +29,11 @@ await esbuild.build({
   logLevel: "warning",
 });
 
+const outFiles = entries.map((name) => path.join(outDir, name.replace(/\.ts$/, ".mjs")));
+
 const child = spawn(
   process.execPath,
-  ["--test", "--test-reporter=spec", ...process.argv.slice(2), outFile],
+  ["--test", "--test-reporter=spec", ...process.argv.slice(2), ...outFiles],
   { stdio: "inherit" },
 );
 

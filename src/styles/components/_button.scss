@@ -48,4 +48,18 @@
       border-color: #565656;
     }
   }
+
+  /** Greyed out with a "no entry" cursor while the form is incomplete. */
+  &:disabled,
+  &:disabled:hover {
+    color: $color-text-muted;
+    cursor: not-allowed;
+    background-color: $color-surface-raised;
+    border-color: $color-border;
+    opacity: 0.55;
+  }
+
+  &:disabled:active {
+    transform: none;
+  }
 }

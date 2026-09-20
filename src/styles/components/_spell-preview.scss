@@ -1,0 +1,83 @@
+@use "../variables" as *;
+@use "../mixins" as *;
+
+/**
+ * The upcoming-spells box nested inside the import card. The table is taller
+ * than the box on purpose: it scrolls instead of growing the form.
+ */
+.spell-preview {
+  display: grid;
+  gap: $space-2;
+
+  &__scroll {
+    max-height: 15rem;
+    overflow-y: auto;
+    background-color: $color-surface;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+
+    th,
+    td {
+      padding: $space-2 $space-3;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid $color-border;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-family: $font-mono;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: $color-text-muted;
+      background-color: $color-surface-raised;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+  }
+
+  &__index,
+  &__seed {
+    font-family: $font-mono;
+    color: $color-text-muted;
+  }
+
+  /** A backfiring outcome, lightly tinted so a run of them reads at a glance. */
+  &__buff--backfire {
+    color: $color-danger;
+    background-color: rgba(255, 107, 129, 0.12);
+  }
+
+  /**
+   * An emphasised buff — the ones worth chasing — marked behind the name, so the
+   * highlight sits on the buff rather than on the whole row.
+   */
+  &__emphasized {
+    padding: 0 0.3em;
+    color: white;
+    background-color: #ffd75e44;
+    border-radius: 0.25rem;
+  }
+
+  &__empty {
+    padding: $space-5;
+    color: $color-text-muted;
+    text-align: center;
+  }
+
+  &__hint {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: $color-text-muted;
+  }
+}

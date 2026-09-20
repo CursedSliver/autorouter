@@ -75,6 +75,9 @@ const buildOptions = {
   chunkNames: "chunks/[name]-[hash]",
   assetNames: "assets/[name]-[hash]",
   loader: {
+    // The usage guide quotes the README, so it is imported as text rather than
+    // copied by hand: the guide cannot drift from the document it shows.
+    ".md": "text",
     ".svg": "file",
     ".png": "file",
     ".jpg": "file",

@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "../variables" as *;
 @use "../mixins" as *;
 
@@ -16,13 +17,131 @@
     flex-wrap: wrap;
     align-items: flex-end;
     gap: $space-3 $space-4;
+
+    /** The bottom row reads as a run of values, so each one sits centred. */
+    .field__input {
+      text-align: center;
+    }
   }
 
-  &__actions {
+  /**
+   * The availability selectors get a row of their own between the inputs and the
+   * run button, laid out like the toolbar so the two rows line up.
+   */
+  &__restrictions {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-end;
+    gap: $space-3 $space-4;
+  }
+
+  &__direct {
+    display: grid;
+    gap: $space-3;
+  }
+
+  /** The toggle sits at the left and the share control at the far right. */
+  &__direct-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+    width: 100%;
+  }
+
+  &__share {
+    display: flex;
+    align-items: center;
     gap: $space-2;
-    margin-left: auto;
+  }
+
+  &__share-status {
+    font-size: 0.75rem;
+    color: $color-text-muted;
+  }
+
+  &__direct-body {
+    display: grid;
+    gap: $space-3;
+    width: 100%;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  /**
+   * The one button the player presses to search: full width, below the inputs.
+   *
+   * It wears a two-half ramp painted across a background twice the button's
+   * width, so the visible half can slide: the resting window runs indigo -> blue,
+   * and hovering drags it left over the bright teal the resting state never shows.
+   */
+  &__route {
+    /**
+     * The ramp's ends, in the order the slide reveals them. The dark label
+     * (`--primary`'s `$color-bg`) sets the floor: the indigo is about as deep as
+     * the label still clears 4.5:1 against, so a deeper indigo needs a light label.
+     */
+    $route-indigo: #7078d0;
+    $route-teal: #1496ce;
+    $route-teal-bright: #52d2e6;
+
+    width: 100%;
+    padding: $space-3 $space-4;
+
+    /** Upper-case and tracked, in the same voice as the metric labels. */
+    font-size: 0.9375rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+
+    /** A soft rim taken from the text colour, so it reads as a highlight on the
+     * gradient rather than as the dark hairline the flat controls wear. */
+    border-color: color.change($color-text, $alpha: 0.3);
+
+    /**
+     * Stops 0-50% are the resting ramp (indigo -> accent blue); 50-100% is what
+     * the slide uncovers, reaching full teal early so a hovered button reads as
+     * teal rather than as blue fading into it. With `200%` width, exactly one half
+     * is visible at either end.
+     */
+    background-image: linear-gradient(
+      100deg,
+      $route-indigo 0%,
+      $color-accent 35%,
+      $route-teal 60%,
+      $route-teal-bright 100%
+    );
+    background-size: 200% 100%;
+    background-position: 0% 0;
+
+    /**
+     * `background-image` cannot transition, but `background-position` can, and a
+     * single declaration drives both directions: leaving and returning each start
+     * fast and ease out into place.
+     */
+    transition:
+      background-position 1200ms cubic-bezier(0.16, 0.5, 0.3, 1),
+      background-color $duration-base ease,
+      border-color $duration-base ease,
+      transform $duration-base ease;
+
+    &:hover:not(:disabled) {
+      background-position: 100% 0;
+
+      /** Restated: `--primary`'s hover would otherwise harden the rim. */
+      border-color: color.change($color-text, $alpha: 0.3);
+    }
+
+    /**
+     * Halted, and not-yet-runnable, keep the flat surfaces they had before: the
+     * gradient is what says "press me", so it should not survive either state.
+     */
+    &.button--halt,
+    &:disabled {
+      background-image: none;
+    }
   }
 
   &__hint {
@@ -31,25 +150,42 @@
     color: $color-text-muted;
   }
 
-  &__progress {
+  /**
+   * The live counters sit in the slot the progress bar used to hold: nothing
+   * before a run, gone again once one finishes. The row itself is
+   * `.metrics--live`, so it speaks in the same voice as the result card.
+   */
+  &__live {
     display: grid;
-    gap: $space-2;
+    justify-items: center;
 
     &[hidden] {
       display: none;
     }
-  }
 
-  &__progress-label {
-    font-family: $font-mono;
-    font-size: 0.75rem;
-    color: $color-text-muted;
+    /** A halted search keeps its last counters, drained of colour. */
+    &--halted .metrics__value {
+      color: $color-text-muted;
+    }
   }
 
   &__result {
     @include card($space-5);
     display: grid;
     gap: $space-4;
+
+    /** Room above when the first finished run scrolls the card into view. */
+    scroll-margin-top: $space-5;
+
+    /**
+     * Idle is an empty box with a dashed rim and no lift, so it reads as a slot
+     * waiting for a result rather than as a result that happens to be empty.
+     */
+    &--idle {
+      border-style: dashed;
+      border-color: color.change($color-border, $alpha: 0.7);
+      box-shadow: none;
+    }
 
     &--error {
       border-color: $color-danger;
@@ -79,6 +215,37 @@
   }
 }
 
+/**
+ * The import card: it takes the spell table's place and holds the preview of
+ * whatever the seed generates, so the generated queue is visible next to the
+ * paste box that produced it.
+ */
+.import {
+  display: grid;
+  gap: $space-3;
+  padding: $space-5;
+  background-color: $color-surface-raised;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: $space-3;
+  }
+
+  /** Shown under the fields when the paste cannot be read. */
+  &__warning {
+    font-size: 0.8125rem;
+    color: $color-danger;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
@@ -95,21 +262,37 @@
     font-family: $font-mono;
     font-size: 1.25rem;
     color: $color-text;
+
+    /** Live counters change with fixed width digits, so the row cannot twitch. */
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.metrics__item--score .metrics__value {
-  font-size: 2rem;
-  color: $color-accent-strong;
+/**
+ * The live readout under the run button: one centred row of counters rather
+ * than the grid the result card lays out, wrapping instead of squeezing on a
+ * narrow screen.
+ */
+.metrics--live {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $space-3 $space-6;
+  text-align: center;
 }
 
-/** The combo can be long ("3BS+EF+CF+CLOT"), so it gets a row of its own. */
+/**
+ * The combo is the one metric the result card leads with, expanded to full buff
+ * names and emphasised like the score it replaced. It can run long, so it gets a
+ * row of its own and may break anywhere.
+ */
 .metrics__item--combo {
   grid-column: 1 / -1;
 }
 
 .metrics__item--combo .metrics__value {
-  font-size: 1.125rem;
+  font-size: 1.5rem;
+  color: $color-accent-strong;
   overflow-wrap: anywhere;
 }
 
@@ -205,26 +388,6 @@
     height: 100%;
     background-image: linear-gradient(90deg, $color-accent, $color-accent-strong);
     transition: width $duration-base ease;
-  }
-}
-
-.progress {
-  height: 0.75rem;
-  overflow: hidden;
-  background-color: $color-surface-raised;
-  border: 1px solid $color-border;
-  border-radius: $radius-full;
-
-  &__fill {
-    width: 0;
-    height: 100%;
-    background-image: linear-gradient(90deg, $color-accent, $color-accent-strong);
-    transition: width $duration-base linear;
-  }
-
-  /** A halted search keeps its last estimate on screen, greyed out. */
-  &--halted &__fill {
-    background-image: linear-gradient(90deg, #4b5563, #9aa3b2);
   }
 }
 

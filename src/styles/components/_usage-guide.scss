@@ -1,0 +1,143 @@
+@use "sass:color";
+@use "../variables" as *;
+@use "../mixins" as *;
+
+/**
+ * The usage guide: the README's own instructions folded away under the title.
+ *
+ * It is tinted with the app's success green rather than the blue every other
+ * surface wears, so it reads as help — the one box on the page that is not
+ * itself part of routing a combo.
+ */
+.usage-guide {
+  overflow: hidden;
+  background-color: color.change($color-success, $alpha: 0.08);
+  border: 1px solid color.change($color-success, $alpha: 0.35);
+  border-radius: $radius-lg;
+
+  /** The whole bar is the control: it carries the label and the folding chevrons. */
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-4;
+    width: 100%;
+    padding: $space-4 $space-5;
+    font-family: $font-sans;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: $color-success-strong;
+    text-align: left;
+    cursor: pointer;
+    background-color: transparent;
+    border: 0;
+    transition: background-color $duration-base ease;
+
+    &:hover {
+      background-color: color.change($color-success, $alpha: 0.12);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  /**
+   * Two chevrons pointing down while the guide is folded. Opening the guide
+   * turns the pair over, which is the whole state change the control has to show.
+   */
+  &__arrow {
+    flex: none;
+    font-size: 0.875rem;
+    line-height: 1;
+    letter-spacing: -0.15em;
+    transition: transform $duration-base ease;
+  }
+
+  &__toggle[aria-expanded="true"] &__arrow {
+    transform: rotate(180deg);
+  }
+
+  /** The rendered README, held back until the toggle asks for it. */
+  &__body {
+    padding: $space-4 $space-5 $space-5;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: $color-text;
+    border-top: 1px solid color.change($color-success, $alpha: 0.25);
+
+    &[hidden] {
+      display: none;
+    }
+
+    /** The README's own headings, pulled down a size so the guide stays a panel. */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin: $space-5 0 $space-2;
+      line-height: 1.3;
+      color: $color-success-strong;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+    }
+
+    h2 {
+      font-size: 1.0625rem;
+    }
+
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-size: 0.9375rem;
+    }
+
+    /** The first block sits right under the rule, with no run-up above it. */
+    > :first-child {
+      margin-top: 0;
+    }
+
+    p {
+      margin: $space-3 0;
+    }
+
+    ul,
+    ol {
+      margin: $space-3 0;
+      padding-left: $space-5;
+    }
+
+    li {
+      margin: $space-1 0;
+    }
+
+    li::marker {
+      color: $color-success;
+    }
+
+    strong {
+      color: #ffffff;
+    }
+
+    a {
+      color: $color-success-strong;
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
+
+      &:hover {
+        color: #ffffff;
+      }
+    }
+
+    blockquote {
+      margin: $space-3 0;
+      padding-left: $space-4;
+      border-left: 2px solid color.change($color-success, $alpha: 0.5);
+    }
+  }
+}

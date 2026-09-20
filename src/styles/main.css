@@ -1,0 +1,1068 @@
+@charset "UTF-8";
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+picture,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+p,
+h1,
+h2,
+h3,
+h4 {
+  overflow-wrap: break-word;
+}
+
+code {
+  font-family: inherit;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/**
+ * The backdrop lives on the root element and is anchored to the viewport: the
+ * page is taller than the viewport, so a body-sized backdrop would tile over the
+ * scrolled region. A solid color underneath keeps the page dark everywhere and
+ * `no-repeat` makes a stray tile impossible.
+ */
+html {
+  min-height: 100%;
+  background-color: #0b1020;
+  background-image: radial-gradient(60rem 40rem at 15% -10%, rgba(91, 140, 255, 0.22), transparent 60%), radial-gradient(50rem 32rem at 100% 0%, rgba(138, 169, 255, 0.14), transparent 55%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body {
+  min-height: 100dvh;
+  padding: 2rem 1rem;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  color: #e8ecf8;
+  background-color: transparent;
+}
+@media (min-width: 48rem) {
+  body {
+    padding: 3rem 2rem;
+  }
+}
+
+#app {
+  display: flex;
+  justify-content: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+code {
+  padding: 0.1em 0.4em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.875em;
+  color: #8aa9ff;
+  background-color: rgba(138, 169, 255, 0.12);
+  border-radius: 0.5rem;
+}
+
+.app {
+  width: 100%;
+  max-width: 62rem;
+  display: grid;
+  gap: 2rem;
+}
+.app__header {
+  display: grid;
+  gap: 0.75rem;
+}
+.app__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: -moz-fit-content;
+  width: fit-content;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8aa9ff;
+  background-color: rgba(91, 140, 255, 0.14);
+  border: 1px solid rgba(91, 140, 255, 0.35);
+  border-radius: 999px;
+}
+.app__badge::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  background-image: url("../assets/logo.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.app__title {
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.app__subtitle {
+  max-width: 44rem;
+  color: #98a4c6;
+}
+.app__footer {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 1rem 3rem;
+  border-radius: 1rem;
+  background-color: rgb(9.6953488372, 14.1023255814, 28.2046511628);
+}
+.app__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+.app__link {
+  color: #ffffff;
+  text-decoration: none;
+  transition: opacity 160ms ease;
+}
+.app__link:hover, .app__link:focus-visible {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+.button {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 0.9rem;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.button:hover {
+  background-color: #273356;
+}
+.button:active {
+  transform: translateY(1px);
+}
+.button:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.button--primary {
+  font-weight: 600;
+  color: #0b1020;
+  background-color: #5b8cff;
+  border-color: #5b8cff;
+}
+.button--primary:hover {
+  background-color: #8aa9ff;
+  border-color: #8aa9ff;
+}
+.button {
+  /** What the run button becomes while a search is in flight. */
+}
+.button--halt {
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #000000;
+  border-color: #3a3a3a;
+}
+.button--halt:hover {
+  background-color: #181818;
+  border-color: #565656;
+}
+.button {
+  /** Greyed out with a "no entry" cursor while the form is incomplete. */
+}
+.button:disabled, .button:disabled:hover {
+  color: #98a4c6;
+  cursor: not-allowed;
+  background-color: #1a2340;
+  border-color: #273356;
+  opacity: 0.55;
+}
+.button:disabled:active {
+  transform: none;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  /** Mandatory fields are held back until something has been imported. */
+}
+.field[hidden] {
+  display: none;
+}
+.field__label {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  color: #98a4c6;
+}
+.field__input {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  width: 7rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+}
+.field__input:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.field__input::-moz-placeholder {
+  color: #98a4c6;
+  opacity: 0.7;
+}
+.field__input::placeholder {
+  color: #98a4c6;
+  opacity: 0.7;
+}
+.field--wide, .field__input--wide {
+  width: 100%;
+}
+.field {
+  /**
+   * Three boxes that read as one: max magic, tower count and tower level are the
+   * same fact told three ways, so they share a single frame split into equal
+   * chunks by the rules drawn between them.
+   */
+}
+.field__linked {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: stretch;
+  width: 15rem;
+  overflow: hidden;
+}
+.field__chunk {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.9375rem;
+  color: #e8ecf8;
+  text-align: center;
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.field__chunk + .field__chunk {
+  border-left: 1px solid #273356;
+}
+.field__chunk {
+  /** Inside the shared frame, so the ring cannot spill past it. */
+}
+.field__chunk:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: -2px;
+}
+
+/** A radio group wearing buttons: three rounded squares, one picked at a time. */
+.choice {
+  display: flex;
+  gap: 0.5rem;
+}
+.choice__option {
+  position: relative;
+  display: inline-grid;
+  cursor: pointer;
+}
+.choice {
+  /** Hidden but focusable: the square beside it is the visible control. */
+}
+.choice__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.choice__label {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.choice__input:checked + .choice__label {
+  color: #0b1020;
+  background-color: #5b8cff;
+  border-color: #5b8cff;
+}
+.choice__option:hover .choice__input:not(:checked) + .choice__label {
+  background-color: #273356;
+}
+.choice__input:focus-visible + .choice__label {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+
+.spell-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.spell-table__caption {
+  padding-bottom: 0.75rem;
+  font-size: 0.8125rem;
+  color: #98a4c6;
+  text-align: left;
+}
+.spell-table th,
+.spell-table td {
+  padding: 0.5rem;
+  text-align: center;
+  border-bottom: 1px solid #273356;
+}
+.spell-table thead th {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #98a4c6;
+}
+.spell-table__index {
+  width: 2.5rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #98a4c6;
+}
+.spell-table__row:hover {
+  background-color: rgba(91, 140, 255, 0.06);
+}
+.spell-table__toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  vertical-align: middle;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  cursor: pointer;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.spell-table__toggle::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.25rem;
+  border-bottom: 2px solid #0b1020;
+  border-left: 2px solid #0b1020;
+  transform: rotate(-45deg) scale(0);
+  transition: transform 160ms ease;
+}
+.spell-table__toggle:checked {
+  background-color: #5b8cff;
+  border-color: #5b8cff;
+}
+.spell-table__toggle:checked::after {
+  transform: rotate(-45deg) scale(1);
+}
+.spell-table__toggle:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.spell-table__number {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  width: 5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+.spell-table__number:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.spell-table__actions {
+  width: 2.75rem;
+}
+.spell-table__remove {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: #98a4c6;
+  cursor: pointer;
+  background-color: transparent;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.spell-table__remove:hover {
+  color: #ff6b81;
+  border-color: #ff6b81;
+}
+.spell-table__remove:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.spell-table__empty {
+  padding: 1.5rem;
+  color: #98a4c6;
+}
+
+/**
+ * The upcoming-spells box nested inside the import card. The table is taller
+ * than the box on purpose: it scrolls instead of growing the form.
+ */
+.spell-preview {
+  display: grid;
+  gap: 0.5rem;
+}
+.spell-preview__scroll {
+  max-height: 15rem;
+  overflow-y: auto;
+  background-color: #131a30;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+}
+.spell-preview__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.spell-preview__table th,
+.spell-preview__table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #273356;
+}
+.spell-preview__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #98a4c6;
+  background-color: #1a2340;
+}
+.spell-preview__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.spell-preview__index, .spell-preview__seed {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #98a4c6;
+}
+.spell-preview {
+  /** A backfiring outcome, lightly tinted so a run of them reads at a glance. */
+}
+.spell-preview__buff--backfire {
+  color: #ff6b81;
+  background-color: rgba(255, 107, 129, 0.12);
+}
+.spell-preview {
+  /**
+   * An emphasised buff — the ones worth chasing — marked behind the name, so the
+   * highlight sits on the buff rather than on the whole row.
+   */
+}
+.spell-preview__emphasized {
+  padding: 0 0.3em;
+  color: white;
+  background-color: rgba(255, 215, 94, 0.2666666667);
+  border-radius: 0.25rem;
+}
+.spell-preview__empty {
+  padding: 1.5rem;
+  color: #98a4c6;
+  text-align: center;
+}
+.spell-preview__hint {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #98a4c6;
+}
+
+/**
+ * The combo-instructions panel: a bordered box that owns its header (the combo
+ * shorthand and the assumed tower level) and the board of action boxes joined by
+ * arrows. The board is sized in pixels by the component, so it can be centred
+ * while the arrows stay aligned to the boxes they connect.
+ */
+.ci {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  background-color: rgba(26, 35, 64, 0.45);
+  border: 1px solid rgba(138, 169, 255, 0.22);
+  border-radius: 0.9rem;
+}
+.ci__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.ci__combo-value {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 1rem;
+  color: #8aa9ff;
+  overflow-wrap: anywhere;
+}
+.ci__level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ci__level-text {
+  font-size: 0.75rem;
+  color: #98a4c6;
+}
+.ci__level-select {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: #e8ecf8;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+}
+.ci__level-select:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
+}
+.ci {
+  /** Holds the board at the panel's content width; a very narrow panel scrolls. */
+}
+.ci__scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ci__board {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+}
+.ci__box {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  box-sizing: border-box;
+  padding: 0.1875rem 0.4375rem;
+  overflow: hidden;
+  border: 1px solid #273356;
+  border-radius: 0.5rem;
+}
+.ci {
+  /**
+   * One cell of the named spritesheet, drawn at 34px: the action carries the
+   * cell's pixel offset, and the sheet's dimensions are 36 cells wide by 37 tall.
+   */
+}
+.ci__icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  background-repeat: no-repeat;
+  background-size: 1224px 1258px;
+  background-position: var(--ci-x, 0) var(--ci-y, 0);
+}
+.ci__icon[data-sheet="icons.png"] {
+  background-image: url("../assets/icons.png");
+}
+.ci__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-self: stretch;
+  min-width: 0;
+  padding: 0.125rem 0;
+}
+.ci {
+  /** The action's name, the box's title. */
+}
+.ci__name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ci__count {
+  font-size: 0.5625rem;
+  color: #98a4c6;
+}
+.ci__arrows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.ci__arrow {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ci {
+  /** The additional arrows stay dashed; the default chain is solid. */
+}
+.ci__arrow--dashed {
+  stroke-dasharray: 6 5;
+}
+.ci {
+  /** The faded rule between two rows of boxes. */
+}
+.ci__divider {
+  stroke: #9aaacb;
+  stroke-opacity: 0.18;
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+.ci {
+  /** The tower-count change above an arrow, outlined so it reads over the line. */
+}
+.ci__delta {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(11, 16, 32, 0.9);
+  stroke-width: 2px;
+}
+.ci__empty {
+  padding: 1.5rem 0;
+  font-size: 0.8125rem;
+  color: #98a4c6;
+  text-align: center;
+}
+.ci__hint {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #98a4c6;
+}
+
+.planner {
+  display: grid;
+  gap: 1.5rem;
+}
+.planner__form {
+  padding: 2rem;
+  background-color: #131a30;
+  border: 1px solid #273356;
+  border-radius: 1.5rem;
+  box-shadow: 0 18px 40px -24px rgba(4, 8, 22, 0.95);
+  display: grid;
+  gap: 1rem;
+}
+.planner__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  /** The bottom row reads as a run of values, so each one sits centred. */
+}
+.planner__toolbar .field__input {
+  text-align: center;
+}
+.planner__direct {
+  display: grid;
+  gap: 0.75rem;
+}
+.planner {
+  /** The toggle sits at the left and the share control at the far right. */
+}
+.planner__direct-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+.planner__share {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.planner__share-status {
+  font-size: 0.75rem;
+  color: #98a4c6;
+}
+.planner__direct-body {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+.planner__direct-body[hidden] {
+  display: none;
+}
+.planner {
+  /**
+   * The one button the player presses to search: full width, below the inputs.
+   *
+   * It wears a two-half ramp painted across a background twice the button's
+   * width, so the visible half can slide: the resting window runs indigo -> blue,
+   * and hovering drags it left over the bright teal the resting state never shows.
+   */
+}
+.planner__route {
+  /**
+   * The ramp's ends, in the order the slide reveals them. The dark label
+   * (`--primary`'s `$color-bg`) sets the floor: the indigo is about as deep as
+   * the label still clears 4.5:1 against, so a deeper indigo needs a light label.
+   */
+  width: 100%;
+  padding: 0.75rem 1rem;
+  /** Upper-case and tracked, in the same voice as the metric labels. */
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /** A soft rim taken from the text colour, so it reads as a highlight on the
+   * gradient rather than as the dark hairline the flat controls wear. */
+  border-color: rgba(232, 236, 248, 0.3);
+  /**
+   * Stops 0-50% are the resting ramp (indigo -> accent blue); 50-100% is what
+   * the slide uncovers, reaching full teal early so a hovered button reads as
+   * teal rather than as blue fading into it. With `200%` width, exactly one half
+   * is visible at either end.
+   */
+  background-image: linear-gradient(100deg, #7078d0 0%, #5b8cff 35%, #1496ce 60%, #52d2e6 100%);
+  background-size: 200% 100%;
+  background-position: 0% 0;
+  /**
+   * `background-image` cannot transition, but `background-position` can, and a
+   * single declaration drives both directions: leaving and returning each start
+   * fast and ease out into place.
+   */
+  transition: background-position 1200ms cubic-bezier(0.16, 0.5, 0.3, 1), background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.planner__route:hover:not(:disabled) {
+  background-position: 100% 0;
+  /** Restated: `--primary`'s hover would otherwise harden the rim. */
+  border-color: rgba(232, 236, 248, 0.3);
+}
+.planner__route {
+  /**
+   * Halted, and not-yet-runnable, keep the flat surfaces they had before: the
+   * gradient is what says "press me", so it should not survive either state.
+   */
+}
+.planner__route.button--halt, .planner__route:disabled {
+  background-image: none;
+}
+.planner__hint {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: #98a4c6;
+}
+.planner {
+  /**
+   * The live counters sit in the slot the progress bar used to hold: nothing
+   * before a run, gone again once one finishes. The row itself is
+   * `.metrics--live`, so it speaks in the same voice as the result card.
+   */
+}
+.planner__live {
+  display: grid;
+  justify-items: center;
+}
+.planner__live[hidden] {
+  display: none;
+}
+.planner__live {
+  /** A halted search keeps its last counters, drained of colour. */
+}
+.planner__live--halted .metrics__value {
+  color: #98a4c6;
+}
+.planner__result {
+  padding: 1.5rem;
+  background-color: #131a30;
+  border: 1px solid #273356;
+  border-radius: 1.5rem;
+  box-shadow: 0 18px 40px -24px rgba(4, 8, 22, 0.95);
+  display: grid;
+  gap: 1rem;
+  /** Room above when the first finished run scrolls the card into view. */
+  scroll-margin-top: 1.5rem;
+  /**
+   * Idle is an empty box with a dashed rim and no lift, so it reads as a slot
+   * waiting for a result rather than as a result that happens to be empty.
+   */
+}
+.planner__result--idle {
+  border-style: dashed;
+  border-color: rgba(39, 51, 86, 0.7);
+  box-shadow: none;
+}
+.planner__result--error {
+  border-color: #ff6b81;
+}
+.planner__footer {
+  display: grid;
+  gap: 0.75rem;
+}
+.planner__note, .planner__error {
+  font-size: 0.8125rem;
+}
+.planner__note {
+  color: #98a4c6;
+}
+.planner__note--warn {
+  color: #8aa9ff;
+}
+.planner__error {
+  color: #ff6b81;
+}
+
+/**
+ * The import card: it takes the spell table's place and holds the preview of
+ * whatever the seed generates, so the generated queue is visible next to the
+ * paste box that produced it.
+ */
+.import {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.9rem;
+}
+.import__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.import {
+  /** Shown under the fields when the paste cannot be read. */
+}
+.import__warning {
+  font-size: 0.8125rem;
+  color: #ff6b81;
+}
+.import__warning[hidden] {
+  display: none;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 1rem;
+}
+.metrics__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #98a4c6;
+}
+.metrics__value {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 1.25rem;
+  color: #e8ecf8;
+  /** Live counters change with fixed width digits, so the row cannot twitch. */
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * The live readout under the run button: one centred row of counters rather
+ * than the grid the result card lays out, wrapping instead of squeezing on a
+ * narrow screen.
+ */
+.metrics--live {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 2rem;
+  text-align: center;
+}
+
+/**
+ * The combo is the one metric the result card leads with, expanded to full buff
+ * names and emphasised like the score it replaced. It can run long, so it gets a
+ * row of its own and may break anywhere.
+ */
+.metrics__item--combo {
+  grid-column: 1/-1;
+}
+
+.metrics__item--combo .metrics__value {
+  font-size: 1.5rem;
+  color: #8aa9ff;
+  overflow-wrap: anywhere;
+}
+
+/**
+ * The route as a sequence of actions chained by arrows, each wearing the magic it
+ * leaves behind. Boxed so it reads as a distinct artifact of the result rather
+ * than as another metric.
+ */
+.chain {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 0.9rem;
+}
+.chain__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #98a4c6;
+}
+.chain__legend {
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.chain__steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.chain__step {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.8125rem;
+  color: #e8ecf8;
+  white-space: nowrap;
+}
+.chain__magic {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+  color: #98a4c6;
+}
+.chain__arrow {
+  font-size: 0.875rem;
+  color: #8aa9ff;
+}
+.chain__empty {
+  font-size: 0.8125rem;
+  color: #98a4c6;
+}
+
+.warning {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.5rem;
+  color: #ff6b81;
+  background-color: rgba(255, 107, 129, 0.08);
+  border: 1px solid #ff6b81;
+  border-radius: 1.5rem;
+}
+.warning__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.warning__text {
+  font-size: 0.8125rem;
+}
+
+.meter {
+  height: 0.375rem;
+  overflow: hidden;
+  background-color: #1a2340;
+  border-radius: 999px;
+}
+.meter__fill {
+  height: 100%;
+  background-image: linear-gradient(90deg, #5b8cff, #8aa9ff);
+  transition: width 160ms ease;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 0.25rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  color: #98a4c6;
+  background-color: #1a2340;
+  border: 1px solid #273356;
+  border-radius: 999px;
+}/*# sourceMappingURL=main.css.map */

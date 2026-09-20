@@ -23,8 +23,8 @@ export function createSpellTable(initial: readonly Spell[]): SpellTable {
   element.className = "spell-table";
   element.innerHTML = `
     <caption class="spell-table__caption">
-      Metamax: the most amount of max magic that you can have.
-      <br>Whenever ready, press Run route to start autorouting.
+      Direct spell input: one row per upcoming spell, bypassing the seed import.
+      <br>Whenever ready, press Click to route combo to start autorouting.
     </caption>
     <thead>
       <tr>

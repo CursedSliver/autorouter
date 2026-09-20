@@ -1,0 +1,173 @@
+@use "sass:color";
+@use "../variables" as *;
+@use "../mixins" as *;
+
+/**
+ * The combo-instructions panel: a bordered box that owns its header (the combo
+ * shorthand and the assumed tower level) and the board of action boxes joined by
+ * arrows. The board is sized in pixels by the component, so it can be centred
+ * while the arrows stay aligned to the boxes they connect.
+ */
+.ci {
+  display: grid;
+  gap: $space-4;
+  width: 100%;
+  padding: $space-4;
+  background-color: color.change($color-surface-raised, $alpha: 0.45);
+  border: 1px solid color.change($color-accent-strong, $alpha: 0.22);
+  border-radius: $radius-md;
+
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2 $space-4;
+  }
+
+  &__combo-value {
+    font-family: $font-mono;
+    font-size: 1rem;
+    color: $color-accent-strong;
+    overflow-wrap: anywhere;
+  }
+
+  &__level {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &__level-text {
+    font-size: 0.75rem;
+    color: $color-text-muted;
+  }
+
+  &__level-select {
+    @include control-surface;
+    padding: 0.1rem $space-2;
+    font-size: 0.75rem;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  /** Holds the board at the panel's content width; a very narrow panel scrolls. */
+  &__scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  &__board {
+    position: relative;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  &__box {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.3125rem;
+    box-sizing: border-box;
+    padding: 0.1875rem 0.4375rem;
+    overflow: hidden;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+  }
+
+  /**
+   * One cell of the named spritesheet, drawn at 34px: the action carries the
+   * cell's pixel offset, and the sheet's dimensions are 36 cells wide by 37 tall.
+   */
+  &__icon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    background-repeat: no-repeat;
+    background-size: 1224px 1258px;
+    background-position: var(--ci-x, 0) var(--ci-y, 0);
+  }
+
+  &__icon[data-sheet="icons.png"] {
+    background-image: url("../assets/icons.png");
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-self: stretch;
+    min-width: 0;
+    padding: 0.125rem 0;
+  }
+
+  /** The action's name, the box's title. */
+  &__name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.15;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__count {
+    font-size: 0.5625rem;
+    color: $color-text-muted;
+  }
+
+  &__arrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  &__arrow {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /** The additional arrows stay dashed; the default chain is solid. */
+  &__arrow--dashed {
+    stroke-dasharray: 6 5;
+  }
+
+  /** The faded rule between two rows of boxes. */
+  &__divider {
+    stroke: #9aaacb;
+    stroke-opacity: 0.18;
+    stroke-width: 1;
+    stroke-dasharray: 3 5;
+  }
+
+  /** The tower-count change above an arrow, outlined so it reads over the line. */
+  &__delta {
+    font-family: $font-mono;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: rgba(11, 16, 32, 0.9);
+    stroke-width: 2px;
+  }
+
+  &__empty {
+    padding: $space-5 0;
+    font-size: 0.8125rem;
+    color: $color-text-muted;
+    text-align: center;
+  }
+
+  &__hint {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: $color-text-muted;
+  }
+}

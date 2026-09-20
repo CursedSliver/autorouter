@@ -106,4 +106,31 @@ code {
     max-width: 44rem;
     color: $color-text-muted;
   }
+
+  &__footer {
+    display: flex;
+    justify-content: center;
+    padding: $space-4 $space-4 $space-7;
+    border-radius: 1rem;
+    background-color: color.adjust($color-bg, $lightness: -1%);
+  }
+
+  &__links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: $space-4;
+  }
+
+  &__link {
+    color: #ffffff;
+    text-decoration: none;
+    transition: opacity $duration-base ease;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 0.75;
+      text-decoration: underline;
+    }
+  }
 }

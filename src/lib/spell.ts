@@ -9,13 +9,17 @@ export function createSpell(overrides: Partial<Spell> = {}): Spell {
   return { bs: false, cf: false, ef: false, dfBs: false, gfdRs: 0, ...overrides };
 }
 
-/** [nothing, nothing, bs, cf, ef] */
+/** The queue the table starts with: [cf, -, bs, -, cf, cf, bs+ef, cf, bs]. */
 export const DEFAULT_SPELLS: readonly Spell[] = [
-  createSpell(),
-  createSpell(),
-  createSpell({ bs: true }),
-  createSpell({ cf: true }),
-  createSpell({ ef: true }),
+  createSpell({ cf: true, gfdRs: 0.2116 }),
+  createSpell({ gfdRs: 0.6592 }),
+  createSpell({ bs: true, gfdRs: 0.1863 }),
+  createSpell({ gfdRs: 0.3853 }),
+  createSpell({ cf: true, gfdRs: 0.4858 }),
+  createSpell({ cf: true, gfdRs: 0.1943 }),
+  createSpell({ bs: true, ef: true, gfdRs: 0.1946 }),
+  createSpell({ cf: true, gfdRs: 0.4837 }),
+  createSpell({ bs: true, gfdRs: 0.9555 }),
 ];
 
 export function isSpellFlag(value: string | undefined): value is SpellFlag {

@@ -5,6 +5,11 @@
   display: grid;
   gap: $space-1;
 
+  /** Mandatory fields are held back until something has been imported. */
+  &[hidden] {
+    display: none;
+  }
+
   &__label {
     font-family: $font-mono;
     font-size: 0.75rem;
@@ -20,5 +25,126 @@
     &:focus-visible {
       @include focus-ring;
     }
+
+    &::placeholder {
+      color: $color-text-muted;
+      opacity: 0.7;
+    }
+  }
+
+  /**
+   * A caution that sits on its own row, below the run of inputs, shown only
+   * while a lookahead past the threshold makes it worth saying.
+   */
+  &__warning {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: $color-danger;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &--wide,
+  &__input--wide {
+    width: 100%;
+  }
+
+  /**
+   * Three boxes that read as one: max magic, tower count and tower level are the
+   * same fact told three ways, so they share a single frame split into equal
+   * chunks by the rules drawn between them.
+   */
+  &__linked {
+    @include control-surface;
+    display: flex;
+    align-items: stretch;
+    width: 15rem;
+    overflow: hidden;
+  }
+
+  &__chunk {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: $space-2 $space-1;
+    font-family: $font-mono;
+    font-size: 0.9375rem;
+    color: $color-text;
+    text-align: center;
+    background-color: transparent;
+    border: 0;
+    border-radius: 0;
+
+    & + & {
+      border-left: 1px solid $color-border;
+    }
+
+    /** Inside the shared frame, so the ring cannot spill past it. */
+    &:focus-visible {
+      outline: 2px solid $color-accent;
+      outline-offset: -2px;
+    }
+  }
+}
+
+/** A radio group wearing buttons: three rounded squares, one picked at a time. */
+.choice {
+  display: flex;
+  gap: $space-2;
+
+  &__option {
+    position: relative;
+    display: inline-grid;
+    cursor: pointer;
+  }
+
+  /** Hidden but focusable: the square beside it is the visible control. */
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  &__label {
+    @include control-surface;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-family: $font-mono;
+    font-size: 0.875rem;
+    border-radius: $radius-sm;
+    transition:
+      background-color $duration-base ease,
+      border-color $duration-base ease,
+      color $duration-base ease;
+  }
+
+  &__input:checked + &__label {
+    color: $color-bg;
+    background-color: $color-accent;
+    border-color: $color-accent;
+  }
+
+  &__option:hover &__input:not(:checked) + &__label {
+    background-color: $color-border;
+  }
+
+  &__input:focus-visible + &__label {
+    @include focus-ring;
+  }
+
+  /**
+   * Options that are words rather than digits ("Yes" / "No") need more room
+   * than a square: the same button, widened to fit its own text.
+   */
+  &--text &__label {
+    width: auto;
+    min-width: 2.5rem;
+    padding: 0 $space-3;
   }
 }

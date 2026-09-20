@@ -1,20 +1,12 @@
 import Spells from "./spelldata";
+type spellIds = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-export const gfdRanges = (() => {
+export const gfdOnlyRanges: number[] = (() => {
     const set: Set<number> = new Set();
     for (let i = 2; i <= 8; i++) {
         for (let ii = 0; ii < i; ii++) {
             set.add(ii / i);
         }
-    }
-    const bases: number[] = ([0.15, 0.15 * 1.1, 0.15 * 1.01, 0.15 * 1.11]).map(x => [x, x * 0.1, x * 5]).flat(Infinity) as number[];
-    for (let i in bases) {
-        for (let ii = 0; ii < 1; ii += 0.15) {
-            const result = bases[i]! + ii;
-            if (result < 1) {
-                set.add(1 - result);
-            }
-        } 
     }
     const result = Array.from(set).sort((a, b) => a - b).filter(x => x < 1);
     // Filter all ranges less than 5 * EPSILON to eliminte floating point errors
@@ -27,8 +19,24 @@ export const gfdRanges = (() => {
     }
     return result;
 })();
+const amplifyFactor = 8 * 3 * 5 * 7;
+const AmplifiedRSToRange: number[] = (() => {
+    const amplifiedRanges = gfdOnlyRanges.map(n => Math.round(n * amplifyFactor));
+    let arr = new Array(amplifyFactor).fill(undefined);
+    for (let i = 0; i < amplifyFactor; i++) {
+        for (let ii = 0; ii < amplifiedRanges.length; ii++) {
+            if (i >= amplifiedRanges[ii]!) {
+                arr[i] = ii;
+            }
+        }
+    }
+    return arr;
+})();
+export function getRangeFromRS(rs: number) {
+    return AmplifiedRSToRange[Math.floor(rs * amplifyFactor)];
+}
 
-const MAX_SIZE = 301;
+const MAX_SIZE = 384;
 export const PossibleGFDPools: number[] = (() => {
     const pools: Set<number> = new Set(); // Number encoding: 8 bits, each bit representing whether the spell is in the pool
     const spells = Object.values(Spells).sort((a, b) => a.index - b.index);
@@ -73,9 +81,10 @@ export function safeAccessCostTable(spell: keyof typeof Spells, max: number, sub
     }
     return CostTable[spell][max]![subIndex];
 }
-export const TransmuteTable: number[][] = (() => {
+export const TransmuteTable: Uint32Array[] = (() => {
     // encodes bitmask directly; PossibleGFDPools is for reference only; order is <none> - <si> - <rb> - <sirb> from highest digit to lowest digit
-    let table: number[][] = new Array(MAX_SIZE).fill(undefined).map(() => new Array(MAX_SIZE));
+    // note: the spell list is reversed
+    let table: Uint32Array[] = new Array(MAX_SIZE).fill(undefined).map(() => new Uint32Array(MAX_SIZE));
     const spells = Object.values(Spells).sort((a, b) => a.index - b.index);
     const multList = [1, 0.9, 0.99, 0.89];
     for (let cur = 0; cur < MAX_SIZE; cur++) {
@@ -94,3 +103,59 @@ export const TransmuteTable: number[][] = (() => {
     }
     return table;
 })(); // first layer is cur, second layer is max
+export const PoolPopCountCached: Record<number, number> = (() => {
+    function popcount(n: number) {
+        let count = 0;
+        while (n) {
+            n &= n - 1; 
+            count++;
+        }
+        return count;
+    }
+    const result: Record<number, number> = {};
+    for (let i = 0; i < 256; i++) {
+        result[i] = popcount(i);
+    }
+    return result;
+})();
+function ableToTransmuteWith(gfdRs: number, pool: number, spellId: spellIds) {
+    let n = 0;
+    if (PoolPopCountCached[pool]! === 0) {
+        return false;
+    }
+    const count = Math.floor(gfdRs * PoolPopCountCached[pool]!);
+    for (let m = 0; m < 8; m++) {
+        if (pool & (1 << m) && n++ === count) {
+            //return (7 - m) === spellId;
+            return m === spellId;
+        }
+    }
+    return false;
+}
+export const RangedTransmuteGuides: Record<number, Record<spellIds, Uint8Array[]>> = (() => {
+    // Records how to reach a certain transmute by leveraging the fact that transmute targets come in large continuous chunks. 
+    // Actuality: Record<gfdRange (indexed from gfdRanges), Record<spellId, [cur][max]> = 0000<none><si><rb><sirb>
+    let table: Record<number, Record<spellIds, Uint8Array[]>> = {};
+    // 256 max magic is unreachable with a tower level less than 19, so just bound the tower level to 18 or smth its fine 
+    const TRUE_METAMAX = 256;
+    for (let range = 0; range < gfdOnlyRanges.length; range++) {
+        table[range] = {} as Record<spellIds, Uint8Array[]>;
+        const rangeVal = gfdOnlyRanges[range]! + 4 * Number.EPSILON;
+        for (let id = 0; id < 8; id++) {
+            const data: Array<Uint8Array> = new Array(MAX_SIZE).fill(undefined);
+            for (let cur = 0; cur < MAX_SIZE; cur++) {
+                const arr = data[cur] = new Uint8Array(TRUE_METAMAX);
+                for (let max = 0; max < TRUE_METAMAX; max++) {
+                    const entry = TransmuteTable[cur]![max]!;
+                    for (let i = 0; i < 4; i++) {
+                        if (ableToTransmuteWith(rangeVal, (entry >>> (i * 8)) & 255, id as spellIds)) {
+                            arr[max]! += 1 << i;
+                        }
+                    }
+                }
+            }
+            table[range]![id as spellIds] = data;
+        }
+    }
+    return table;
+})();
