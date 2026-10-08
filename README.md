@@ -83,7 +83,7 @@ You can find more information in `src/app/route/microrouter.ts`.
 
 # Contribute
 Please contribute! We would love a more optimized autorouter that can route more things faster. You can contribute directly by opening up a pull request, however, take note of the following:
-- You must provide an overview of the changes made in the pull request and how it optimizes the performance of routing, alongside **reproducible test** showing increased speed while maintaining accuracy. Though, you can also improve it by adding more mechanics.
+- Read Goals & issues section below for a list of what could be improved.
 - This app is mostly vibe coded, but the core routing logic is NOT vibe coded. Use of AI is allowed everywhere **except** within the actual search algorithm, in `src/app/route/`. 
 - I will not accept pull requests that only modify the UI or other nonessential parts of the app unless previously addressed in a noteworthy Issue.
 
@@ -92,5 +92,6 @@ Please contribute! We would love a more optimized autorouter that can route more
 - 5-frame checks: max magic can only update every 5 frames (CC runs at 30 fps). Make it consider this fact.
 - Consideration of sometimes not using SI/RB to achieve better outcomes.
 - Consideration of intentionally lowering current magic by reducing max magic to achieve a more optimal route. (While remaining reasonably fast!)
-- Make it faster overall. Can achieve direct microrouter speedup by using a dynamic programming DP table approach instead of a traditional tree traversal engine.
+- Make it faster overall. You must provide an overview of the changes made in the pull request and how it optimizes the performance of routing, alongside **reproducible test** showing increased speed while maintaining accuracy. Though, you can also improve it by adding more mechanics.
+  - Can achieve direct microrouter speedup by using a dynamic programming DP table approach instead of a traditional tree traversal engine.
 - Consideration of funny frame: use of the fact that resolve refunds can make current magic exceed max magic for up to one frame.
