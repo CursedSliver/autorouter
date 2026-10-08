@@ -47,8 +47,22 @@ const ARROW_INSET = 7;
 const FALLBACK_WIDTH = 960;
 /** The colour of the chain of default arrows, as the theme's own tokens. */
 const DEFAULT_ARROW_COLOR = "var(--color-primary)";
-/** Lane colours: the palette's two rules, alternating so stacked lanes stay apart. */
-const LANE_COLORS = ["var(--color-accent)", "var(--color-primary)"];
+/**
+ * Lane colours: the additional arrows' own palette. It runs past the app's four
+ * tokens because a diagram can stack several dashed arrows over the same stretch
+ * of a row, and hue is the only cue left once they share a lane region. Any two
+ * arrows that travel over the same stretch are forced apart; arrows that never
+ * meet may reuse a hue, so the board stays a handful of colours rather than one
+ * per arrow.
+ */
+const LANE_COLORS = [
+  "var(--color-lane-1)",
+  "var(--color-lane-2)",
+  "var(--color-lane-3)",
+  "var(--color-lane-4)",
+  "var(--color-lane-5)",
+  "var(--color-lane-6)",
+];
 /** How far two runs must overlap before they count as sharing a lane. */
 const MIN_OVERLAP = 3;
 /** How far above an arrow its tower-count change sits. */
@@ -104,6 +118,24 @@ interface PlacedArrow {
   /** The x the arrow meets its target box at. */
   targetX: number;
   color: string;
+}
+
+/**
+ * Whether two additional arrows travel over any of the same stretches of a row.
+ * Two arrows that share a stretch sit in lanes a step apart, so with one hue
+ * their dashes would read as a single line; that is the relation the lane
+ * colours exist to separate. Arrows that never share a stretch cannot be
+ * confused and are free to match.
+ */
+function runsOverlap(a: readonly LaneRun[], b: readonly LaneRun[]): boolean {
+  return a.some((run) =>
+    b.some(
+      (other) =>
+        other.row === run.row &&
+        other.side === run.side &&
+        Math.min(other.x2, run.x2) - Math.max(other.x1, run.x1) > 0,
+    ),
+  );
 }
 
 interface Layout {
@@ -286,15 +318,23 @@ function layout(
               ? 0
               : 1;
       const chosen = side === 0 ? below : above;
-      const depth = chosen.reduce((deepest, run) => Math.max(deepest, run.lane), 0);
+      // The first hue none of the arrows this one overlaps is already wearing.
+      // Falling back to a cyclic pick only happens once the palette is spent.
+      const taken = new Set(
+        placed.filter((arrow) => runsOverlap(chosen, arrow.runs)).map((arrow) => arrow.color),
+      );
+      const color =
+        LANE_COLORS.find((candidate) => !taken.has(candidate)) ??
+        LANE_COLORS[placed.length % LANE_COLORS.length]!;
 
       sideUsage[side] += 1;
       placed.push({
         runs: chosen,
         sourceX,
         targetX,
-        // Each lane further out wears the next colour, so a stack stays readable.
-        color: LANE_COLORS[depth % LANE_COLORS.length]!,
+        // Arrows that share a stretch are pushed onto different hues, so the
+        // dashes can be told apart where they run past each other.
+        color,
       });
     }
   }

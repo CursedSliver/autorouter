@@ -28,6 +28,17 @@
   --color-accent-faint: rgba(134, 239, 172, 0.08);
   --color-accent-line: rgba(134, 239, 172, 0.45);
 
+  // Lane colours: the additional (dashed) arrows. The one place the palette
+  // steps outside its four tokens, because a diagram can stack several dashed
+  // arrows whose dashes run past each other and hue is all that tells them
+  // apart. Six hues, chosen to stay legible over the dark backdrop.
+  --color-lane-1: #7dd3fc;
+  --color-lane-2: #86efac;
+  --color-lane-3: #fca5a5;
+  --color-lane-4: #fcd34d;
+  --color-lane-5: #c4b5fd;
+  --color-lane-6: #5eead4;
+
   // The route button: a bordered block wearing a faint accent gradient. On
   // hover the colours invert and the gradient thins out to a low-opacity
   // accent over the now-primary background.
@@ -53,6 +64,14 @@
   --color-accent-soft: rgba(27, 58, 107, 0.14);
   --color-accent-faint: rgba(27, 58, 107, 0.07);
   --color-accent-line: rgba(27, 58, 107, 0.4);
+
+  // The same six lanes, deepened so they keep their contrast on white.
+  --color-lane-1: #0369a1;
+  --color-lane-2: #15803d;
+  --color-lane-3: #b91c1c;
+  --color-lane-4: #b45309;
+  --color-lane-5: #6d28d9;
+  --color-lane-6: #0f766e;
 
   // Light keeps its colours on hover: the gradient is the navy at a low
   // opacity over white, and it only deepens slightly rather than inverting.
