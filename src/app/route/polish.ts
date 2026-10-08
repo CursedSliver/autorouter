@@ -61,7 +61,13 @@ function escapeHtml(text: string): string {
 class ActualAction {
     towerCount: number;
     additionalArrow: ActualAction | null;
-    constructor(public name: string, public icon: [number, number, string], public color: string, public towerRange: [number, number], public row: number, public raw: string, additionalArrow?: ActualAction) {
+    /**
+     * The max magic the action is performed at, or null when it is indifferent
+     * to it. The route sells down to the least max magic that still covers the
+     * step, and a tower level can only reach down to one tower's worth of max
+     * magic, so a step asking for less than that cannot be played as drawn.
+     */
+    constructor(public name: string, public icon: [number, number, string], public color: string, public towerRange: [number, number], public row: number, public raw: string, public requiredMagic: number | null) {
         // `maxMagicToTowerCount` reports the whole span of tower counts that share
         // a max magic, which at high counts can run past any tower a player owns.
         // The caller clamps to the player's own ceiling, so refuse to carry an
@@ -72,7 +78,7 @@ class ActualAction {
             this.towerRange = towerRange;
         }
         this.towerCount = this.towerRange[0];
-        this.additionalArrow = additionalArrow || null; // mainly used for resolves
+        this.additionalArrow = null; // set later, mainly used for resolves
     }
     registerAdditionalArrow(additionalArrow: ActualAction) {
         this.additionalArrow = additionalArrow;
@@ -151,13 +157,19 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
             continue;
         }
         const towerRange = polishO.towerCounts(stateIterator.parent, towerLevel);
+        // A cast is priced off the magic it is cast with, which is the state's
+        // own; the steps that lean on something else say so in their polish.
+        const requiredMagic = polishO.requiredMagic
+            ? polishO.requiredMagic(stateIterator.parent)
+            : stateIterator.parent.currentMagic;
         list.unshift(new ActualAction(
             polishO.text, 
             polishO.icon, 
             polishO.color,
             towerRange, 
             stateIterator.spellIndex,
-            stateIterator.action
+            stateIterator.action,
+            requiredMagic
         ));
         // The season a buff-carrying FtHoF step must run in, right before it.
         const season = seasonActionFor(stateIterator, rawSpells);
@@ -168,7 +180,8 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
                 season.color,
                 towerRange,
                 stateIterator.spellIndex,
-                season.raw
+                season.raw,
+                requiredMagic
             ));
         }
         if (stateIterator.onscreens < stateIterator.parent.onscreens) {
@@ -179,7 +192,8 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
                     '#ffd500',
                     list[0]!.towerRange, 
                     stateIterator.spellIndex,
-                    'onscreen'
+                    'onscreen',
+                    list[0]!.requiredMagic
                 )); 
             }
         }
@@ -214,7 +228,8 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
             '#556cff',
             list[0]!.towerRange,
             stateIterator.spellIndex,
-            'slotRB'
+            'slotRB',
+            list[0]!.requiredMagic
         ));
     }
     if (stateIterator.restrictions.siAllowed) {
@@ -224,7 +239,8 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
             '#556cff',
             list[0]!.towerRange,
             stateIterator.spellIndex,
-            'slotSI'
+            'slotSI',
+            list[0]!.requiredMagic
         ));
     }
     list.unshift(new ActualAction(
@@ -233,7 +249,8 @@ function polish(state: RouteState, towerLevel: number, startCastCount: number, a
         '#556cff',
         list[0]!.towerRange,
         stateIterator.spellIndex,
-        'start'
+        'start',
+        list[0]!.requiredMagic
     ))
     stateIterator = state;
     list[0]!.towerCount = list[0]!.towerRange[0];
@@ -275,6 +292,12 @@ export interface PolishedAction {
     towerCount: number;
     /** The max magic that tower count reaches at the polished tower level. */
     maxMagic: number;
+    /**
+     * The max magic the action has to be performed at, or null when the action
+     * does not care. The panel compares it to the tower level's floor: a level
+     * that cannot sell down this far cannot run the route as drawn.
+     */
+    requiredMagic: number | null;
     /** Index of the action its faded yellow arrow points at, or -1 for none. */
     additionalArrow: number;
 }
@@ -309,6 +332,7 @@ export function serializeInstructions(results: PolishResults, towerLevel: number
             color: action.color,
             towerCount: action.towerCount,
             maxMagic: towerCountToMaxMagic(action.towerCount, towerLevel),
+            requiredMagic: action.requiredMagic,
             additionalArrow: action.additionalArrow === null ? -1 : indexOf.get(action.additionalArrow) ?? -1
         }))
     };

@@ -81,11 +81,10 @@ export function createSpellPreview(): SpellPreview {
       </table>
     </div>
     <p class="spell-preview__hint">
-      The spells starting from the cast count: each one's GFD roll, with the buff it lands
-      with no season change and under any other season. Red-tinted rows indicate that it backfires by default. 
+      Red-tinted rows indicate that it backfires by default. 
       Buffs in parentheses indicate outcomes only accessible by changing backfire chance.
       <br>
-      The autorouter will attempt to find a best route within the spells shown ONLY. To adjust the amount, adjust the lookahead.
+      Metarouter will attempt to find a best route within the spells shown ONLY. To adjust the amount, adjust the lookahead.
     </p>
   `;
 

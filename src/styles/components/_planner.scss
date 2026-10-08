@@ -1,4 +1,3 @@
-@use "sass:color";
 @use "../variables" as *;
 @use "../mixins" as *;
 
@@ -58,7 +57,7 @@
 
   &__share-status {
     font-size: 0.75rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__direct-body {
@@ -74,80 +73,123 @@
   /**
    * The one button the player presses to search: full width, below the inputs.
    *
-   * It wears a two-half ramp painted across a background twice the button's
-   * width, so the visible half can slide: the resting window runs indigo -> blue,
-   * and hovering drags it left over the bright teal the resting state never shows.
+   * It is a bordered block carrying a single faint accent gradient, painted on a
+   * pseudo-element so it can fade independently of the block's own colour. On
+   * hover the block inverts — the primary fill meets the primary border and the
+   * text drops to the backdrop — while the gradient thins to a low-opacity
+   * accent over that fill. Light mode keeps its colours and only deepens the
+   * gradient, so nothing inverts.
    */
   &__route {
-    /**
-     * The ramp's ends, in the order the slide reveals them. The dark label
-     * (`--primary`'s `$color-bg`) sets the floor: the indigo is about as deep as
-     * the label still clears 4.5:1 against, so a deeper indigo needs a light label.
-     */
-    $route-indigo: #7078d0;
-    $route-teal: #1496ce;
-    $route-teal-bright: #52d2e6;
-
+    position: relative;
+    isolation: isolate;
     width: 100%;
     padding: $space-3 $space-4;
+    overflow: hidden;
 
     /** Upper-case and tracked, in the same voice as the metric labels. */
     font-size: 0.9375rem;
+    font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 
-    /** A soft rim taken from the text colour, so it reads as a highlight on the
-     * gradient rather than as the dark hairline the flat controls wear. */
-    border-color: color.change($color-text, $alpha: 0.3);
+    color: var(--route-fg);
+    background-color: var(--route-bg);
+    border: 2px solid var(--color-primary);
+    border-radius: $radius-md;
 
-    /**
-     * Stops 0-50% are the resting ramp (indigo -> accent blue); 50-100% is what
-     * the slide uncovers, reaching full teal early so a hovered button reads as
-     * teal rather than as blue fading into it. With `200%` width, exactly one half
-     * is visible at either end.
-     */
-    background-image: linear-gradient(
-      100deg,
-      $route-indigo 0%,
-      $color-accent 35%,
-      $route-teal 60%,
-      $route-teal-bright 100%
-    );
-    background-size: 200% 100%;
-    background-position: 0% 0;
-
-    /**
-     * `background-image` cannot transition, but `background-position` can, and a
-     * single declaration drives both directions: leaving and returning each start
-     * fast and ease out into place.
-     */
     transition:
-      background-position 1200ms cubic-bezier(0.16, 0.5, 0.3, 1),
-      background-color $duration-base ease,
-      border-color $duration-base ease,
-      transform $duration-base ease;
+      background-color $duration-fast ease,
+      color $duration-fast ease,
+      border-color $duration-fast ease,
+      transform $duration-fast ease;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background-image: var(--route-gradient);
+      opacity: 1;
+      transition: opacity $duration-fast ease;
+    }
 
     &:hover:not(:disabled) {
-      background-position: 100% 0;
+      color: var(--route-fg-hover);
+      background-color: var(--route-bg-hover);
+      border-color: var(--color-primary);
 
-      /** Restated: `--primary`'s hover would otherwise harden the rim. */
-      border-color: color.change($color-text, $alpha: 0.3);
+      &::before {
+        opacity: var(--route-gradient-hover);
+      }
     }
 
-    /**
-     * Halted, and not-yet-runnable, keep the flat surfaces they had before: the
-     * gradient is what says "press me", so it should not survive either state.
-     */
-    &.button--halt,
+    /** Halted: a flat solid block, the gradient gone with the call to action. */
+    &.button--halt {
+      color: var(--color-bg);
+      background-color: var(--color-primary);
+      border-color: var(--color-primary);
+
+      &::before {
+        opacity: 0;
+      }
+
+      &:hover {
+        color: var(--color-primary);
+        background-color: var(--color-bg);
+      }
+    }
+
     &:disabled {
-      background-image: none;
+      color: var(--color-alt);
+      background-color: var(--color-bg);
+      border-color: var(--color-alt);
+
+      &::before {
+        opacity: 0;
+      }
     }
+  }
+
+  /**
+   * Wraps the run button so its hover note is not clipped by the button's own
+   * `overflow: hidden`.
+   */
+  &__route-host {
+    position: relative;
+  }
+
+  /**
+   * The run button's hover note: names one input still missing, centred on the
+   * button and dropping below it. The button sets `hidden` on it whenever there
+   * is nothing to explain (so only a disabled button has one), and hovering the
+   * host unhides it.
+   */
+  &__route-tip {
+    position: absolute;
+    top: calc(100% + #{$space-2});
+    left: 50%;
+    z-index: 1;
+    display: none;
+    width: max-content;
+    max-width: min(20rem, 100%);
+    padding: $space-2 $space-3;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-bg);
+    background-color: var(--color-primary);
+    border-radius: $radius-sm;
+    transform: translateX(-50%);
+  }
+
+  &__route-host:hover &__route-tip:not([hidden]) {
+    display: block;
   }
 
   &__hint {
     font-size: 0.8125rem;
     line-height: 1.7;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   /**
@@ -165,7 +207,7 @@
 
     /** A halted search keeps its last counters, drained of colour. */
     &--halted .metrics__value {
-      color: $color-text-muted;
+      color: var(--color-alt);
     }
   }
 
@@ -178,17 +220,16 @@
     scroll-margin-top: $space-5;
 
     /**
-     * Idle is an empty box with a dashed rim and no lift, so it reads as a slot
+     * Idle is an empty box with a dashed rim and no fill, so it reads as a slot
      * waiting for a result rather than as a result that happens to be empty.
      */
     &--idle {
       border-style: dashed;
-      border-color: color.change($color-border, $alpha: 0.7);
-      box-shadow: none;
+      border-color: var(--color-primary-soft-2);
     }
 
     &--error {
-      border-color: $color-danger;
+      border-color: var(--color-accent);
     }
   }
 
@@ -203,30 +244,28 @@
   }
 
   &__note {
-    color: $color-text-muted;
+    color: var(--color-alt);
 
     &--warn {
-      color: $color-accent-strong;
+      color: var(--color-accent);
     }
   }
 
   &__error {
-    color: $color-danger;
+    color: var(--color-accent);
   }
 }
 
 /**
  * The import card: it takes the spell table's place and holds the preview of
  * whatever the seed generates, so the generated queue is visible next to the
- * paste box that produced it.
+ * paste box that produced it. One step down from the form it sits inside.
  */
 .import {
+  @include nested-surface(1);
   display: grid;
   gap: $space-3;
   padding: $space-5;
-  background-color: $color-surface-raised;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
 
   &__row {
     display: flex;
@@ -238,7 +277,7 @@
   /** Shown under the fields when the paste cannot be read. */
   &__warning {
     font-size: 0.8125rem;
-    color: $color-danger;
+    color: var(--color-accent);
 
     &[hidden] {
       display: none;
@@ -255,13 +294,13 @@
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__value {
     font-family: $font-mono;
     font-size: 1.25rem;
-    color: $color-text;
+    color: var(--color-primary);
 
     /** Live counters change with fixed width digits, so the row cannot twitch. */
     font-variant-numeric: tabular-nums;
@@ -292,7 +331,7 @@
 
 .metrics__item--combo .metrics__value {
   font-size: 1.5rem;
-  color: $color-accent-strong;
+  color: var(--color-accent);
   overflow-wrap: anywhere;
 }
 
@@ -302,12 +341,10 @@
  * than as another metric.
  */
 .chain {
+  @include nested-surface(1);
   display: grid;
   gap: $space-2;
   padding: $space-4;
-  background-color: $color-surface-raised;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
 
   &__label {
     display: flex;
@@ -317,7 +354,7 @@
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__legend {
@@ -336,24 +373,24 @@
   &__step {
     font-family: $font-mono;
     font-size: 0.8125rem;
-    color: $color-text;
+    color: var(--color-primary);
     white-space: nowrap;
   }
 
   &__magic {
     margin-left: $space-1;
     font-size: 0.75rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__arrow {
     font-size: 0.875rem;
-    color: $color-accent-strong;
+    color: var(--color-accent);
   }
 
   &__empty {
     font-size: 0.8125rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 }
 
@@ -361,10 +398,10 @@
   display: grid;
   gap: $space-1;
   padding: $space-4 $space-5;
-  color: $color-danger;
-  background-color: rgba(255, 107, 129, 0.08);
-  border: 1px solid $color-danger;
-  border-radius: $radius-lg;
+  color: var(--color-accent);
+  background-color: var(--color-accent-faint);
+  border: 1px solid var(--color-accent);
+  border-radius: $radius-md;
 
   &__title {
     font-size: 0.75rem;
@@ -381,12 +418,12 @@
 .meter {
   height: 0.375rem;
   overflow: hidden;
-  background-color: $color-surface-raised;
+  background-color: var(--color-primary-soft);
   border-radius: $radius-full;
 
   &__fill {
     height: 100%;
-    background-image: linear-gradient(90deg, $color-accent, $color-accent-strong);
+    background-color: var(--color-accent);
     transition: width $duration-base ease;
   }
 }
@@ -404,8 +441,8 @@
   padding: $space-1 $space-3;
   font-family: $font-mono;
   font-size: 0.75rem;
-  color: $color-text-muted;
-  background-color: $color-surface-raised;
-  border: 1px solid $color-border;
-  border-radius: $radius-full;
+  color: var(--color-alt);
+  background-color: var(--color-primary-soft);
+  border: 1px solid var(--color-primary);
+  border-radius: $radius-sm;
 }

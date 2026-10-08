@@ -1,19 +1,17 @@
-@use "sass:color";
 @use "../variables" as *;
 @use "../mixins" as *;
 
 /**
  * The usage guide: the README's own instructions folded away under the title.
  *
- * It is tinted with the app's success green rather than the blue every other
- * surface wears, so it reads as help — the one box on the page that is not
- * itself part of routing a combo.
+ * It is drawn in the accent rather than the primary, so it reads as help — the
+ * one box on the page that is not itself part of routing a combo.
  */
 .usage-guide {
   overflow: hidden;
-  background-color: color.change($color-success, $alpha: 0.08);
-  border: 1px solid color.change($color-success, $alpha: 0.35);
-  border-radius: $radius-lg;
+  background-color: var(--color-accent-faint);
+  border: 1px solid var(--color-accent);
+  border-radius: $radius-md;
 
   /** The whole bar is the control: it carries the label and the folding chevrons. */
   &__toggle {
@@ -26,15 +24,15 @@
     font-family: $font-sans;
     font-size: 1.0625rem;
     font-weight: 600;
-    color: $color-success-strong;
+    color: var(--color-accent);
     text-align: left;
     cursor: pointer;
     background-color: transparent;
     border: 0;
-    transition: background-color $duration-base ease;
+    transition: background-color $duration-fast ease;
 
     &:hover {
-      background-color: color.change($color-success, $alpha: 0.12);
+      background-color: var(--color-accent-soft);
     }
 
     &:focus-visible {
@@ -51,7 +49,7 @@
     font-size: 0.875rem;
     line-height: 1;
     letter-spacing: -0.15em;
-    transition: transform $duration-base ease;
+    transition: transform $duration-fast ease;
   }
 
   &__toggle[aria-expanded="true"] &__arrow {
@@ -63,8 +61,8 @@
     padding: $space-4 $space-5 $space-5;
     font-size: 0.9375rem;
     line-height: 1.7;
-    color: $color-text;
-    border-top: 1px solid color.change($color-success, $alpha: 0.25);
+    color: var(--color-primary);
+    border-top: 1px solid var(--color-accent-line);
 
     &[hidden] {
       display: none;
@@ -79,7 +77,7 @@
     h6 {
       margin: $space-5 0 $space-2;
       line-height: 1.3;
-      color: $color-success-strong;
+      color: var(--color-accent);
     }
 
     h1 {
@@ -117,27 +115,27 @@
     }
 
     li::marker {
-      color: $color-success;
+      color: var(--color-accent);
     }
 
     strong {
-      color: #ffffff;
+      color: var(--color-accent);
     }
 
     a {
-      color: $color-success-strong;
+      color: var(--color-accent);
       text-decoration: underline;
       text-underline-offset: 0.15em;
 
       &:hover {
-        color: #ffffff;
+        opacity: 0.7;
       }
     }
 
     blockquote {
       margin: $space-3 0;
       padding-left: $space-4;
-      border-left: 2px solid color.change($color-success, $alpha: 0.5);
+      border-left: 2px solid var(--color-accent-line);
     }
   }
 }

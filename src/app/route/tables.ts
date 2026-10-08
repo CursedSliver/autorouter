@@ -22,7 +22,7 @@ export const gfdOnlyRanges: number[] = (() => {
 const amplifyFactor = 8 * 3 * 5 * 7;
 const AmplifiedRSToRange: number[] = (() => {
     const amplifiedRanges = gfdOnlyRanges.map(n => Math.round(n * amplifyFactor));
-    let arr = new Array(amplifyFactor).fill(undefined);
+    let arr = new Array(amplifyFactor).fill(0);
     for (let i = 0; i < amplifyFactor; i++) {
         for (let ii = 0; ii < amplifiedRanges.length; ii++) {
             if (i >= amplifiedRanges[ii]!) {

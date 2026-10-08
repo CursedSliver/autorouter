@@ -1,0 +1,65 @@
+// Palette ------------------------------------------------------------------
+//
+// The whole app speaks in four colours: a primary (borders and important
+// text), an alt primary (hints and secondary text, deliberately lower contrast
+// against the backdrop), the backdrop itself, and an accent (links and
+// bolded text). Every other shade below is one of those four carrying an
+// alpha, so a theme is a handful of values rather than a wall of hues.
+//
+// Dark is the default: the bare `:root` holds it, and light is opted into with
+// `data-theme="light"` on the root element.
+
+:root {
+  color-scheme: dark;
+
+  --color-primary: #ffffff;
+  --color-alt: #8c8c8c;
+  --color-bg: #0a0a0a;
+  --color-accent: #86efac;
+
+  // The primary at a very low opacity. Nested blocks tint their background
+  // with it, one step deeper per level of nesting, so hierarchy is drawn with
+  // washes instead of fills. Kept faint enough to stay a hint, never a surface.
+  --color-primary-soft: rgba(255, 255, 255, 0.04);
+  --color-primary-soft-2: rgba(255, 255, 255, 0.075);
+
+  // The accent at the opacities the gradient, links and highlights need.
+  --color-accent-soft: rgba(134, 239, 172, 0.16);
+  --color-accent-faint: rgba(134, 239, 172, 0.08);
+  --color-accent-line: rgba(134, 239, 172, 0.45);
+
+  // The route button: a bordered block wearing a faint accent gradient. On
+  // hover the colours invert and the gradient thins out to a low-opacity
+  // accent over the now-primary background.
+  --route-bg: var(--color-bg);
+  --route-fg: var(--color-primary);
+  --route-bg-hover: var(--color-primary);
+  --route-fg-hover: var(--color-bg);
+  --route-gradient: linear-gradient(100deg, transparent, var(--color-accent-soft));
+  --route-gradient-hover: 0.35;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-primary: #000000;
+  --color-alt: #5a5a5a;
+  --color-bg: #ffffff;
+  --color-accent: #1b3a6b;
+
+  --color-primary-soft: rgba(0, 0, 0, 0.035);
+  --color-primary-soft-2: rgba(0, 0, 0, 0.07);
+
+  --color-accent-soft: rgba(27, 58, 107, 0.14);
+  --color-accent-faint: rgba(27, 58, 107, 0.07);
+  --color-accent-line: rgba(27, 58, 107, 0.4);
+
+  // Light keeps its colours on hover: the gradient is the navy at a low
+  // opacity over white, and it only deepens slightly rather than inverting.
+  --route-bg: var(--color-bg);
+  --route-fg: var(--color-primary);
+  --route-bg-hover: var(--color-bg);
+  --route-fg-hover: var(--color-primary);
+  --route-gradient: linear-gradient(100deg, transparent, var(--color-accent-soft));
+  --route-gradient-hover: 0.65;
+}

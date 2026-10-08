@@ -1,9 +1,9 @@
 /**
  * The planner's URL contract. A link can carry the whole form state
  * (`seed`, `casts`, `maxmagic`, `towercount`, `towerlevel`, `refills`, `si`,
- * `rb`, `currentmagic`, `lookahead`) so a route is shareable without re-typing
- * it, and an `execute` switch lets the linked page route the combo as soon as it
- * loads.
+ * `rb`, `bsmult`, `currentmagic`, `lookahead`) so a route is shareable without
+ * re-typing it, and an `execute` switch lets the linked page route the combo as
+ * soon as it loads.
  *
  * Reading is deliberately lenient: a parameter that is missing or unparseable is
  * simply reported as absent, and the caller decides on defaults. This module only
@@ -21,6 +21,8 @@ export interface PlannerUrlState {
   /** Whether the run may assume Supreme Intellect / Reality Bending is slotted. */
   si: boolean | null;
   rb: boolean | null;
+  /** The multiplier one Building Special gives, in the game's own terms. */
+  bsMult: number | null;
   currentMagic: number | null;
   lookahead: number | null;
 }
@@ -66,6 +68,7 @@ export function readPlannerUrlParams(search: string): PlannerUrlParams {
     refills: readInteger(params, "refills"),
     si: readBoolean(params, "si"),
     rb: readBoolean(params, "rb"),
+    bsMult: readInteger(params, "bsmult"),
     currentMagic: readInteger(params, "currentmagic"),
     lookahead: readInteger(params, "lookahead"),
     execute: execute === "true" || execute === "1",
@@ -94,6 +97,7 @@ export function plannerShareUrl(base: string, state: PlannerUrlState): string {
   add("refills", state.refills);
   add("si", state.si);
   add("rb", state.rb);
+  add("bsmult", state.bsMult);
   add("currentmagic", state.currentMagic);
   add("lookahead", state.lookahead);
 

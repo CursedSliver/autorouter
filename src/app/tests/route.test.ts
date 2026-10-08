@@ -27,13 +27,21 @@ import { auraMatrix, buildTransmutationTable } from "./offsetGraph";
 /** Spell-table shorthand: flags in the name, gfd roll as the argument. */
 const B = (gfdRs: number): Partial<Spell> => ({ bs: true, gfdRs });
 
+/** What one Building Special is worth here: a x100 multiplier puts it at 40. */
+const TEST_BS_SCORE = 40;
+
 /**
  * The restrictions every state in this file runs under unless a test says
- * otherwise: SI and RB both slotted. Every cost (x0.89) and backfire (x1.11)
- * constant below is written for that profile, so a state built the plain way
- * would quietly run at full price and the base backfire chance instead.
+ * otherwise: SI and RB both slotted, and a Building Special worth 40. Every cost
+ * (x0.89) and backfire (x1.11) constant below is written for that profile, so a
+ * state built the plain way would quietly run at full price, the base backfire
+ * chance, and the default BS weight instead.
  */
-const DEFAULT_RESTRICTIONS = { siAllowed: true, rbAllowed: true } as const;
+const DEFAULT_RESTRICTIONS = {
+  siAllowed: true,
+  rbAllowed: true,
+  bsScore: TEST_BS_SCORE,
+} as const;
 
 /** `new RouteState(...)` with the default restrictions already applied. */
 function routeState(
@@ -43,10 +51,9 @@ function routeState(
   spellIndex: number,
   metamax: number,
   refills: 0 | 1 | 2,
+  restrictions: typeof DEFAULT_RESTRICTIONS = DEFAULT_RESTRICTIONS
 ): RouteState {
-  return new RouteState(parent, spells, currentMagic, spellIndex, metamax, refills).setRestrictions(
-    DEFAULT_RESTRICTIONS,
-  );
+  return new RouteState(parent, spells, currentMagic, spellIndex, metamax, refills, null, restrictions);
 }
 
 const actionByName = new Map<string, Action>(Actions.map((action) => [action.name, action]));
@@ -93,18 +100,36 @@ function routeNames(state: RouteState): string[] {
 }
 
 describe("route(): state and action contracts", () => {
-  it("scores bs + 1.4 cf + 1.3 ef - 0.1 clot", () => {
+  it("scores bs * bsScore + 58 cf + 56 ef - 6 clot, in whole numbers", () => {
     const state = routeState(null, [], 0, 0, 200, 0);
     assert.equal(state.currentValue(), 0);
 
     state.addBuff("clot");
-    assert.ok(Math.abs(state.currentValue() - -0.1) < 1e-9);
+    assert.equal(state.currentValue(), -6, "a clot costs 3");
 
     state.addBuff("bs");
+    assert.equal(state.currentValue(), TEST_BS_SCORE - 6, "one bs is worth the profile's bsScore");
     state.addBuff("bs");
+    assert.equal(state.currentValue(), 2 * TEST_BS_SCORE - 6, "bs stacks");
     state.addBuff("cf");
+    assert.equal(state.currentValue(), 2 * TEST_BS_SCORE + 58 - 6, "cf is worth 58");
     state.addBuff("ef");
-    assert.ok(Math.abs(state.currentValue() - 4.6) < 1e-9, "2 bs + cf + ef - clot");
+    assert.equal(state.currentValue(), 2 * TEST_BS_SCORE + 58 + 56 - 6, "ef is worth 56");
+    assert.ok(
+      Number.isInteger(state.currentValue()),
+      "every term is a whole number, so the score never gathers a fraction",
+    );
+
+    // The BS weight belongs to the caller: the same buffs under a different
+    // bsScore differ by exactly that term, and still land on a whole number.
+    const lighter = routeState(null, [], 0, 0, 200, 0).setRestrictions({
+      siAllowed: true,
+      rbAllowed: true,
+      bsScore: 6,
+    });
+    for (const buff of ["bs", "bs", "cf", "ef", "clot"] as const) lighter.addBuff(buff);
+    assert.equal(lighter.currentValue(), 2 * 6 + 58 + 56 - 6, "a x2 bs is worth 6");
+    assert.ok(Number.isInteger(lighter.currentValue()));
   });
 
   it("is deterministic: the same input yields the same route", () => {
@@ -1161,9 +1186,10 @@ describe("route(): restrictions", () => {
   it("[restrictions] each profile prices a cast and scales the backfire chance", () => {
     for (const profile of PROFILES) {
       const label = `${profile.flags.siAllowed ? "si" : "no-si"} + ${profile.flags.rbAllowed ? "rb" : "no-rb"}`;
-      const state = routeState(null, [createSpell(B(0.84))], 150, 0, 200, 0).setRestrictions(
-        profile.flags,
-      );
+      const state = routeState(null, [createSpell(B(0.84))], 150, 0, 200, 0).setRestrictions({
+        ...profile.flags,
+        bsScore: TEST_BS_SCORE,
+      });
 
       assert.ok(
         Math.abs(state.costMult - profile.costMult) < 1e-9,
@@ -1190,7 +1216,10 @@ describe("route(): restrictions", () => {
     // chunk takes cbg instead. This is what pins which pool bit the profile
     // reads: the guide carries all four, and the wrong one still finds a spell.
     const selected = (flags: { siAllowed: boolean; rbAllowed: boolean }): string[] => {
-      const state = routeState(null, [createSpell(B(0.5))], 5, 0, 5, 0).setRestrictions(flags);
+      const state = routeState(null, [createSpell(B(0.5))], 5, 0, 5, 0).setRestrictions({
+        ...flags,
+        bsScore: TEST_BS_SCORE,
+      });
       return GFD_ACTIONS.filter((name) => actAction(state, name).performed);
     };
 
@@ -1210,6 +1239,7 @@ describe("route(): restrictions", () => {
       routeState(null, [createSpell(B(0.5))], 5, 0, 5, 0).setRestrictions({
         siAllowed: false,
         rbAllowed: false,
+        bsScore: TEST_BS_SCORE,
       }),
       "g!cbg",
     );

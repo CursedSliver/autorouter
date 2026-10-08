@@ -1,25 +1,13 @@
-@use "sass:color";
 @use "variables" as *;
 @use "mixins" as *;
 
-:root {
-  color-scheme: dark;
-}
-
 /**
- * The backdrop lives on the root element and is anchored to the viewport: the
- * page is taller than the viewport, so a body-sized backdrop would tile over the
- * scrolled region. A solid color underneath keeps the page dark everywhere and
- * `no-repeat` makes a stray tile impossible.
+ * One solid colour behind everything. No gradient, no layered radials: the
+ * backdrop is a single value the theme owns.
  */
 html {
   min-height: 100%;
-  background-color: $color-bg;
-  background-image:
-    radial-gradient(60rem 40rem at 15% -10%, rgba(91, 140, 255, 0.22), transparent 60%),
-    radial-gradient(50rem 32rem at 100% 0%, rgba(138, 169, 255, 0.14), transparent 55%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: var(--color-bg);
 }
 
 body {
@@ -27,8 +15,8 @@ body {
   padding: $space-6 $space-4;
   font-family: $font-sans;
   font-size: 1rem;
-  color: $color-text;
-  background-color: transparent;
+  color: var(--color-primary);
+  background-color: var(--color-bg);
 
   @include from($breakpoint-md) {
     padding: $space-7 $space-6;
@@ -56,8 +44,8 @@ code {
   padding: 0.1em 0.4em;
   font-family: $font-mono;
   font-size: 0.875em;
-  color: $color-accent-strong;
-  background-color: rgba(138, 169, 255, 0.12);
+  color: var(--color-accent);
+  background-color: var(--color-accent-faint);
   border-radius: $radius-sm;
 }
 
@@ -72,19 +60,30 @@ code {
     gap: $space-3;
   }
 
+  /** The title and the theme switch share a line, the title taking the room. */
+  &__titlebar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3 $space-4;
+  }
+
+  /** The version, in the accent so it reads as a marker rather than a heading. */
   &__badge {
     display: inline-flex;
     align-items: center;
     gap: $space-2;
-    width: fit-content;
-    padding: $space-1 $space-3;
+    padding: $space-1 $space-2;
+    font-family: $font-mono;
     font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: $color-accent-strong;
-    background-color: color.change($color-accent, $alpha: 0.14);
-    border: 1px solid color.change($color-accent, $alpha: 0.35);
-    border-radius: $radius-full;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    border-radius: $radius-sm;
+    vertical-align: middle;
 
     &::before {
       content: "";
@@ -100,19 +99,21 @@ code {
     font-size: clamp(2rem, 6vw, 3rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
+    color: var(--color-primary);
   }
 
   &__subtitle {
     max-width: 44rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__footer {
     display: flex;
     justify-content: center;
-    padding: $space-4 $space-4 $space-7;
-    border-radius: 1rem;
-    background-color: color.adjust($color-bg, $lightness: -1%);
+    padding: $space-4;
+    background-color: var(--color-primary-soft);
+    border: 1px solid var(--color-primary);
+    border-radius: $radius-md;
   }
 
   &__links {
@@ -123,13 +124,13 @@ code {
   }
 
   &__link {
-    color: #ffffff;
+    color: var(--color-accent);
     text-decoration: none;
-    transition: opacity $duration-base ease;
+    transition: opacity $duration-fast ease;
 
     &:hover,
     &:focus-visible {
-      opacity: 0.75;
+      opacity: 0.7;
       text-decoration: underline;
     }
   }

@@ -8,12 +8,22 @@
       name="description"
       content="Automatically computes how to perform a combo given an excerpt from the planner."
     />
-    <meta name="theme-color" content="#0b1020" />
+    <meta name="theme-color" content="#0a0a0a" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
 
+    <script>
+      // Dark is the default; restore a saved light choice before the first paint.
+      try {
+        if (localStorage.getItem("metarouter-theme") === "light") {
+          document.documentElement.dataset.theme = "light";
+        }
+      } catch (error) {
+        // Storage can be blocked; fall back to the default theme.
+      }
+    </script>
     <script type="module" src="/app.js"></script>
   </head>
   <body>

@@ -12,8 +12,9 @@
   &__scroll {
     max-height: 15rem;
     overflow-y: auto;
-    background-color: $color-surface;
-    border: 1px solid $color-border;
+    // One wash deeper than the import card it sits in.
+    background-color: var(--color-primary-soft-2);
+    border: 1px solid var(--color-primary);
     border-radius: $radius-sm;
   }
 
@@ -27,7 +28,7 @@
       padding: $space-2 $space-3;
       text-align: left;
       white-space: nowrap;
-      border-bottom: 1px solid $color-border;
+      border-bottom: 1px solid var(--color-primary-soft-2);
     }
 
     thead th {
@@ -37,8 +38,9 @@
       font-family: $font-mono;
       font-size: 0.6875rem;
       font-weight: 500;
-      color: $color-text-muted;
-      background-color: $color-surface-raised;
+      color: var(--color-alt);
+      // Opaque, so rows cannot show through a sticky header.
+      background-color: var(--color-bg);
     }
 
     tbody tr:last-child td {
@@ -49,35 +51,48 @@
   &__index,
   &__seed {
     font-family: $font-mono;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
-  /** A backfiring outcome, lightly tinted so a run of them reads at a glance. */
+  /** A backfiring outcome, tinted red so a run of them reads at a glance. */
   &__buff--backfire {
-    color: $color-danger;
+    color: #ff6b81;
     background-color: rgba(255, 107, 129, 0.12);
   }
 
   /**
-   * An emphasised buff — the ones worth chasing — marked behind the name, so the
-   * highlight sits on the buff rather than on the whole row.
+   * An emphasised buff — the ones worth chasing — marked behind the name in
+   * yellow, so the highlight sits on the buff rather than on the whole row.
    */
   &__emphasized {
     padding: 0 0.3em;
-    color: white;
+    color: #ffffff;
     background-color: #ffd75e44;
-    border-radius: 0.25rem;
+    border-radius: $radius-sm;
   }
 
   &__empty {
     padding: $space-5;
-    color: $color-text-muted;
+    color: var(--color-alt);
     text-align: center;
   }
 
   &__hint {
     font-size: 0.75rem;
     line-height: 1.6;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
+}
+
+/**
+ * The red and yellow are fixed data colours, but the text over them has to
+ * follow the backdrop: on white the default red and the white on yellow would
+ * both wash out, so light mode swaps in readable ink.
+ */
+:root[data-theme="light"] .spell-preview__buff--backfire {
+  color: #c0273b;
+}
+
+:root[data-theme="light"] .spell-preview__emphasized {
+  color: #3a2e00;
 }

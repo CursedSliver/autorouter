@@ -31,7 +31,7 @@ export function createUsageGuide(): HTMLElement {
       aria-expanded="false"
       aria-controls="usage-guide-body"
     >
-      <span class="usage-guide__title">Usage guide</span>
+      <span class="usage-guide__title">Getting Started</span>
       <span class="usage-guide__arrow" aria-hidden="true">▾▾</span>
     </button>
     <div class="usage-guide__body" id="usage-guide-body" data-guide-body hidden></div>

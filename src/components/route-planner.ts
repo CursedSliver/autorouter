@@ -8,8 +8,22 @@ import {
 } from "../app/route/seedgen";
 import { fullCombo, shorthandCombo } from "../lib/combo";
 import { query } from "../lib/dom";
-import { clampTowerCount, clampTowerLevel, towersForMaxMagic } from "../lib/max-magic";
-import { DEFAULT_SPELLS } from "../lib/spell";
+import {
+  clampTowerCount,
+  clampTowerLevel,
+  MAX_TOWER_LEVEL,
+  minimumMaxMagic,
+  MIN_TOWER_LEVEL,
+  towersForMaxMagic,
+} from "../lib/max-magic";
+import {
+  bsScoreFor,
+  clampBsMult,
+  DEFAULT_BS_MULT,
+  DEFAULT_SPELLS,
+  MAX_BS_MULT,
+  MIN_BS_MULT,
+} from "../lib/spell";
 import { plannerShareUrl, readPlannerUrlParams, type PlannerUrlParams } from "../lib/url-params";
 import { createComboInstructions } from "./combo-instructions";
 import { createSaveImport } from "./save-import";
@@ -25,6 +39,10 @@ const DEFAULT_METAMAX = 100;
 const DEFAULT_GOAL = 1;
 const DEFAULT_LOOKAHEAD = 10;
 const DEFAULT_REFILLS = 1;
+/** The bounds the form holds its numeric fields to. */
+const MAX_METAMAX = 200;
+const MIN_LOOKAHEAD = 1;
+const MAX_LOOKAHEAD = 40;
 /** Above this the search tree grows fast enough to warn about. */
 const LOOKAHEAD_WARN_ABOVE = 20;
 
@@ -86,8 +104,8 @@ export function createRoutePlanner(): HTMLElement {
             class="field__input"
             type="number"
             name="lookahead"
-            min="1"
-            max="40"
+            min="${MIN_LOOKAHEAD}"
+            max="${MAX_LOOKAHEAD}"
             step="1"
             value="${DEFAULT_LOOKAHEAD}"
             disabled
@@ -96,7 +114,7 @@ export function createRoutePlanner(): HTMLElement {
         <div class="field" data-maxmagic hidden>
           <span class="field__label">maximum max magic | tower count | level</span>
           <div class="field__linked">
-            <input class="field__chunk" type="number" name="metamax" min="1" step="1" aria-label="max magic" />
+            <input class="field__chunk" type="number" name="metamax" min="1" max="${MAX_METAMAX}" step="1" aria-label="max magic" />
             <input
               class="field__chunk"
               type="number"
@@ -175,11 +193,26 @@ export function createRoutePlanner(): HTMLElement {
             </label>
           </div>
         </div>
+        <label class="field" data-mandatory="bs" hidden>
+          <span class="field__label">Mult per Building Special</span>
+          <input
+            class="field__input"
+            type="number"
+            name="bsMult"
+            min="${MIN_BS_MULT}"
+            max="${MAX_BS_MULT}"
+            step="1"
+            value="${DEFAULT_BS_MULT}"
+          />
+        </label>
       </div>
 
-      <button class="button button--primary planner__route" type="submit" data-run disabled>
-        Click to route combo
-      </button>
+      <div class="planner__route-host">
+        <button class="button button--primary planner__route" type="submit" data-run disabled>
+          Click to route combo
+        </button>
+        <span class="planner__route-tip" data-run-tip role="tooltip" hidden></span>
+      </div>
 
       <div class="planner__live" data-live-host hidden>
         <dl class="metrics metrics--live">
@@ -203,10 +236,6 @@ export function createRoutePlanner(): HTMLElement {
       </div>
     </form>
     <div class="planner__result" data-result-host aria-live="polite"></div>
-    <div class="warning">
-      <p class="warning__title">Notes</p>
-      <p class="warning__text">AI disclaimer: Core routing logic is entirely handwritten; AI is ONLY used in the creation of the UI.</p>
-    </div>
   `;
 
   const form = query<HTMLFormElement>(section, "form");
@@ -231,12 +260,15 @@ export function createRoutePlanner(): HTMLElement {
   const refillsRadios = [...section.querySelectorAll<HTMLInputElement>('input[name="refills"]')];
   const siField = query<HTMLElement>(section, '[data-mandatory="si"]');
   const rbField = query<HTMLElement>(section, '[data-mandatory="rb"]');
+  const bsField = query<HTMLElement>(section, '[data-mandatory="bs"]');
+  const bsMultInput = query<HTMLInputElement>(section, 'input[name="bsMult"]');
   const siChoice = query<HTMLElement>(section, "[data-si]");
   const rbChoice = query<HTMLElement>(section, "[data-rb]");
   const siRadios = [...section.querySelectorAll<HTMLInputElement>('input[name="si"]')];
   const rbRadios = [...section.querySelectorAll<HTMLInputElement>('input[name="rb"]')];
   const goalInput = query<HTMLInputElement>(section, 'input[name="goal"]');
   const runButton = query<HTMLButtonElement>(section, "[data-run]");
+  const runTip = query<HTMLElement>(section, "[data-run-tip]");
   const liveHost = query<HTMLElement>(section, "[data-live-host]");
   const liveBranches = query<HTMLElement>(section, '[data-live="branches"]');
   const liveRate = query<HTMLElement>(section, '[data-live="rate"]');
@@ -311,7 +343,23 @@ export function createRoutePlanner(): HTMLElement {
       search.postMessage(message);
     });
 
-  const combo = createComboInstructions({ requestPolish });
+  /**
+   * Route again at a tower level the instructions panel asked for. The level is
+   * one third of the max-magic fact, so it goes back into the form first — along
+   * with the max magic that the tower count and the new level imply — and the
+   * search then runs again from those inputs.
+   */
+  const requestReroute = (towerLevel: number): void => {
+    towerLevelInput.value = String(clampTowerLevel(towerLevel));
+    linkMaxMagic("level");
+    updateRouteAvailability();
+
+    if (!routeReady()) return;
+
+    run();
+  };
+
+  const combo = createComboInstructions({ requestPolish, requestReroute });
 
   /** The field's value as a number, or null while it is blank or unusable. */
   const readNumber = (input: HTMLInputElement): number | null => {
@@ -349,23 +397,125 @@ export function createRoutePlanner(): HTMLElement {
     return picked ? picked.value === "true" : null;
   };
 
-  /** The seven inputs a route needs before the button will do anything. */
-  const routeReady = (): boolean =>
-    readNumber(castTotalInput) !== null &&
-    readNumber(lookaheadInput) !== null &&
-    readNumber(maxMagicInput) !== null &&
-    readNumber(currentInput) !== null &&
-    readRefills() !== null &&
-    readAvailability(siRadios) !== null &&
-    readAvailability(rbRadios) !== null;
+  /** The Building Special multiplier as the run takes it: a whole number in range. */
+  const readBsMult = (): number => {
+    const mult = clampBsMult(readNumber(bsMultInput) ?? DEFAULT_BS_MULT);
+
+    bsMultInput.value = String(mult);
+
+    return mult;
+  };
+
+  /**
+   * One numeric route field, named the way its label reads and bounded the way
+   * the form bounds it. `max` is null when the field has no ceiling; `current`'s
+   * ceiling follows max magic, so the list reads it live.
+   */
+  interface RouteField {
+    label: string;
+    input: HTMLInputElement;
+    min: number;
+    max: number | null;
+  }
+
+  const routeFields = (): RouteField[] => [
+    { label: "spells casted all time", input: castTotalInput, min: 0, max: null },
+    { label: "lookahead", input: lookaheadInput, min: MIN_LOOKAHEAD, max: MAX_LOOKAHEAD },
+    { label: "maximum max magic", input: maxMagicInput, min: 1, max: MAX_METAMAX },
+    { label: "current", input: currentInput, min: 0, max: readNumber(maxMagicInput) },
+    { label: "tower level", input: towerLevelInput, min: MIN_TOWER_LEVEL, max: MAX_TOWER_LEVEL },
+    { label: "Mult per Building Special", input: bsMultInput, min: MIN_BS_MULT, max: MAX_BS_MULT },
+  ];
+
+  /**
+   * Why a field cannot be used, or null while it is blank or in range. A blank
+   * field is not an error — the missing-input scan owns that — but a value that
+   * is not a whole number, or sits outside the field's bounds, is.
+   */
+  const fieldError = ({ label, input, min, max }: RouteField): string | null => {
+    const raw = input.value.trim();
+
+    if (raw === "") return null;
+    if (!/^-?\d+$/.test(raw)) return `“${label}” must be a whole number`;
+
+    const value = Number.parseInt(raw, 10);
+
+    if (value < min) return `“${label}” must be at least ${min}`;
+    if (max !== null && value > max) return `“${label}” must be at most ${max}`;
+
+    return null;
+  };
+
+  /** The first field holding an unusable value, as an error, or null once all are valid. */
+  const firstInputError = (): string | null => {
+    for (const field of routeFields()) {
+      const error = fieldError(field);
+
+      if (error !== null) return error;
+    }
+
+    return null;
+  };
+
+  /**
+   * The first route field still blank, named the way its label reads, or null
+   * once every one holds a value. The selectors cannot be mistyped — a radio is
+   * only ever one of its own values — so an unpicked group is their only failure.
+   */
+  const missingRouteInput = (): string | null => {
+    for (const field of routeFields()) {
+      if (readNumber(field.input) === null) return field.label;
+    }
+
+    if (readRefills() === null) return "max refills";
+    if (readAvailability(siRadios) === null) return "Supreme Intellect available";
+    if (readAvailability(rbRadios) === null) return "Reality Bending available";
+
+    return null;
+  };
+
+  /** The nine inputs a route needs — each present and in range — before it can run. */
+  const routeReady = (): boolean => firstInputError() === null && missingRouteInput() === null;
+
+  /**
+   * What the run button's hover note should say, or null when there is nothing to
+   * explain. A missing seed outranks every field: the mandatory inputs are not
+   * even revealed until a save or seed is imported, so the note leads with that
+   * and names the button that does it. An unusable value outranks a blank one,
+   * since a bad number is the likelier reason a filled-in form will not run.
+   */
+  const runTipMessage = (): string | null => {
+    if (seed === null) return 'Paste a save or a 5-character seed above, then press "Import save".';
+
+    const error = firstInputError();
+
+    if (error !== null) return error;
+
+    const missing = missingRouteInput();
+
+    return missing === null ? null : `Fill in “${missing}” to route`;
+  };
 
   /**
    * Without every input there is nothing to route, so the button greys out and
    * refuses the click; a search in flight keeps it live so it can still be
-   * halted.
+   * halted. A disabled button says nothing on its own, so its hover note names
+   * one input still missing; while the button is live the note stays hidden.
    */
   const updateRouteAvailability = (): void => {
     runButton.disabled = !running && !routeReady();
+
+    // A disabled button advertises no action, so its native tooltip yields to
+    // the hover note that names a missing input.
+    if (runButton.disabled) runButton.removeAttribute("title");
+    else {
+      runButton.title = running
+        ? "Stop the search; the best score found so far is kept"
+        : "Search for the best route";
+    }
+
+    runTip.hidden = !runButton.disabled;
+    runTip.textContent = runTipMessage() ?? "";
   };
 
   /** A lookahead past the warn threshold is slow enough to say so, in place. */
@@ -457,6 +607,7 @@ export function createRoutePlanner(): HTMLElement {
     refillsField.hidden = false;
     siField.hidden = false;
     rbField.hidden = false;
+    bsField.hidden = false;
     castTotalInput.disabled = false;
     lookaheadInput.disabled = false;
   };
@@ -508,9 +659,18 @@ export function createRoutePlanner(): HTMLElement {
     updateRouteAvailability();
   });
 
-  for (const input of [maxMagicInput, currentInput]) {
+  for (const input of [maxMagicInput, currentInput, bsMultInput]) {
     input.addEventListener("input", updateRouteAvailability);
   }
+
+  // The multiplier is held to the range its score scale covers, but only once
+  // the field is committed: clamping every keystroke would rewrite a half-typed
+  // 150 into 250. A run reads it through the same clamp, so a value typed and
+  // never blurred out is still corrected.
+  bsMultInput.addEventListener("change", () => {
+    clampField(bsMultInput, clampBsMult);
+    updateRouteAvailability();
+  });
 
   // Every radio group gates the run button the same way: a missing pick is a
   // missing input.
@@ -529,6 +689,7 @@ export function createRoutePlanner(): HTMLElement {
       refills: readRefills(),
       si: readAvailability(siRadios),
       rb: readAvailability(rbRadios),
+      bsMult: readBsMult(),
       currentMagic: readNumber(currentInput),
       lookahead: readNumber(lookaheadInput),
     });
@@ -598,9 +759,6 @@ export function createRoutePlanner(): HTMLElement {
     runButton.classList.toggle("button--primary", !next);
     runButton.classList.toggle("button--halt", next);
     runButton.textContent = next ? "Halt" : "Click to route combo";
-    runButton.title = next
-      ? "Stop the search; the best score found so far is kept"
-      : "Search for the best route";
     runButton.setAttribute("aria-label", next ? "Halt the running search" : "Route the combo");
     updateRouteAvailability();
   };
@@ -676,7 +834,7 @@ export function createRoutePlanner(): HTMLElement {
     const paragraph = document.createElement("p");
     paragraph.className = "planner__note";
     paragraph.textContent =
-      'Nothing routed yet — import a save or fill in the queue above, then press "Click to route combo". The best route found will appear here.';
+      'The best route found will appear here.';
     resultHost.replaceChildren(paragraph);
   };
 
@@ -727,14 +885,19 @@ export function createRoutePlanner(): HTMLElement {
     resultHost.replaceChildren(paragraph);
   };
 
-  /** A halted search has no result: only the last report says how far it got. */
+  /**
+   * A halted search has no result: only the last report says how far it got.
+   * Nothing has a route behind it yet, so the card names the combo the score was
+   * banked from - the same shorthand the live counter uses - rather than a score
+   * on its own.
+   */
   const renderHalted = (elapsed: number): void => {
     setResultState(null);
 
     const paragraph = document.createElement("p");
     paragraph.className = "planner__note planner__note--warn";
     paragraph.textContent = latestProgress
-      ? `Halted after ${seconds(elapsed)} with ${branches(latestProgress.steps)} branches explored. Best score found so far: ${latestProgress.score} — the search did not finish, so a better route may exist.`
+      ? `Halted after ${seconds(elapsed)} with ${branches(latestProgress.steps)} branches explored. Best combo found so far: ${shorthandCombo(latestProgress.combo)} — the search did not finish, so a better route may exist.`
       : `Halted after ${seconds(elapsed)}, before the search reported any progress.`;
     resultHost.replaceChildren(paragraph);
   };
@@ -755,10 +918,15 @@ export function createRoutePlanner(): HTMLElement {
       metamax: metamax,
       currentMagic: current,
       startingRefills: refills,
-      // Both selectors gate the button, so a missing pick cannot reach here.
+      // Both selectors and the multiplier gate the button, so a missing pick
+      // cannot reach here. The multiplier is the player's own; the routers only
+      // ever see the score it is worth.
       restrictions: {
         siAllowed: readAvailability(siRadios) === true,
         rbAllowed: readAvailability(rbRadios) === true,
+        bsScore: bsScoreFor(readBsMult()),
+        // The route may sell down to what one tower gives at the assumed level.
+        minMaxMagic: minimumMaxMagic(towerLevel),
       },
       towerLevel: towerLevel,
       absMaxTowers: towersForMaxMagic(metamax, towerLevel),
@@ -904,6 +1072,10 @@ export function createRoutePlanner(): HTMLElement {
 
     if (params.currentMagic !== null) currentInput.value = String(params.currentMagic);
     syncCurrentCap();
+
+    // A link carries the multiplier the player typed, so it is clamped the same
+    // way the field clamps it rather than trusted as it stands.
+    if (params.bsMult !== null) bsMultInput.value = String(clampBsMult(params.bsMult));
 
     if (params.refills !== null) {
       const picked = refillsRadios.find(

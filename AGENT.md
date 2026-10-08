@@ -21,9 +21,11 @@ order, to manipulate which effects actually land. The search picks the best sequ
 
 - **Spell** — a queue entry with four effect flags (`bs`, `cf`, `ef`, `dfBs`) plus a `gfdRs`
   roll. Effects are the objective; the flags are what the search tries to secure.
-- **Score** — the accumulated value of banked effects (`bs` dominates; `cf` and `ef` are
-  worth a fixed bonus). **The score function is the definition of "good" for the whole
-  search** — most heuristics and pruning rules are justified relative to it.
+- **Score** — the accumulated value of banked effects, in whole numbers throughout: every
+  `bs` is worth what its own multiplier implies (`round(20 * log10(mult))`, so a x100 BS is
+  40), `cf` is worth 58, `ef` 26 and a clot costs 6. **The score function is the definition
+  of "good" for the whole search** — most heuristics and pruning rules are justified
+  relative to it.
 - **Magic** — the resource. Has a current magic and max magic, the latter is adjustable up
   to a cap (the `metamax`). Spending is bounded by the current magic.
 - **Actions** — the moves available to the search. Conceptually they fall into groups:
@@ -62,7 +64,7 @@ src/
       seedgen.ts        base-game RNG shim: seed/save reading + spell generation
   lib/
     dom.ts              small DOM query helper
-    spell.ts            spell flags, defaults, and small helpers
+    spell.ts            spell flags, defaults, and the Building Special score scale
     max-magic.ts        the arithmetic linking max magic to towers
     url-params.ts       the planner's URL contract: read on load, build share links
   components/
@@ -120,18 +122,20 @@ input" toggle so a hand-edited queue cannot quietly disagree with an imported se
 `spell-preview.ts` renders those same generated rows read-only, so what the router is about
 to work on is visible next to the box that produced it.
 
-The inputs the search needs — cast count, lookahead, max magic, current magic, refills and the
-two availability selectors (Supreme Intellect / Reality Bending, which set the run's
+The inputs the search needs — cast count, lookahead, max magic, current magic, refills, the
+multiplier one Building Special gives (`bsmult`, which the form turns into the run's `bsScore`)
+and the two availability selectors (Supreme Intellect / Reality Bending, which set the run's
 `siAllowed` / `rbAllowed`) — are deliberately mandatory: the run button stays disabled until
 every one of them holds a value, and the ones an import can supply (cast count, lookahead) or
-that need a seed to mean anything (max magic, current, refills, the selectors) are hidden
-until the first successful import. Max magic is one control made of three linked fields (max
-magic, tower count, tower level) with `lib/max-magic.ts` owning the conversion, since they
-describe a single fact.
+that need a seed to mean anything (max magic, current, refills, the multiplier, the selectors)
+are hidden until the first successful import. Max magic is one control made of three linked
+fields (max magic, tower count, tower level) with `lib/max-magic.ts` owning the conversion,
+since they describe a single fact.
 
 A whole form state travels in the URL: on load the planner reads `?seed`, `?casts`,
-`?maxmagic`, `?towercount`, `?towerlevel`, `?refills`, `?si`, `?rb`, `?currentmagic` and
-`?lookahead` (plus `?execute=true` to route as soon as the form is complete), and the share
+`?maxmagic`, `?towercount`, `?towerlevel`, `?refills`, `?si`, `?rb`, `?bsmult`,
+`?currentmagic` and `?lookahead` (plus `?execute=true` to route as soon as the form is
+complete), and the share
 button at the right of the "direct spell input" row copies those same parameters back out as
 a link.
 The format lives in `lib/url-params.ts`; a shared link never carries `execute`, so opening
@@ -143,7 +147,8 @@ the worker (a worker inside the search cannot answer a message). While it runs t
 the live counters — branches, branch throughput on a smoothed average, best combo and elapsed
 time. A finished run reports its final combo, resources, and whether the result was truncated —
 because a truncated result is a _different claim_ than an optimal one and should never be
-presented as the answer.
+presented as the answer. A halted run reports the best combo it had banked rather than its
+score: nothing has a route behind it yet, so the combo is the only honest summary.
 
 ## Build & run
 

@@ -1,4 +1,5 @@
-// Stylesheet entrypoint. Order matters: tokens -> mixins -> reset -> base -> components.
+// Stylesheet entrypoint. Order matters: theme -> tokens -> mixins -> reset -> base -> components.
+@use "theme";
 @use "variables";
 @use "mixins";
 @use "reset";

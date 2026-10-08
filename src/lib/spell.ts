@@ -32,3 +32,27 @@ export function clampRoll(value: number): number {
 
   return Math.min(Math.max(value, 0), 0.99);
 }
+
+/**
+ * Mult per Building Special: the multiplier the player gets from one Building
+ * Special, which is what that effect is worth. The form asks for it in these
+ * terms and clamps it to this range; the score the search runs on is derived
+ * from it by `bsScoreFor`.
+ */
+export const MIN_BS_MULT = 2;
+export const MAX_BS_MULT = 500;
+/** The multiplier assumed when the player does not say: a x80 Building Special. */
+export const DEFAULT_BS_MULT = 80;
+
+/** `mult` as the form owns it: a whole number inside the range the scale covers. */
+export const clampBsMult = (mult: number): number =>
+  Math.min(Math.max(Math.round(mult), MIN_BS_MULT), MAX_BS_MULT);
+
+/**
+ * What one Building Special scores at this multiplier. The scale counts 20
+ * units per decade - a x10 Building Special is worth 20 - so a BS worth `mult`
+ * scores `round(20 * log10(mult))`. The result is a whole number, like every
+ * other term of the score.
+ */
+export const bsScoreFor = (mult: number): number =>
+  Math.round(Math.log10(clampBsMult(mult)) * 20);

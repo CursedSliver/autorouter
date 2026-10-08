@@ -1,4 +1,3 @@
-@use "sass:color";
 @use "../variables" as *;
 @use "../mixins" as *;
 
@@ -10,13 +9,11 @@
  * they connect.
  */
 .ci {
+  @include nested-surface(1);
   display: grid;
   gap: $space-4;
   width: 100%;
   padding: $space-4;
-  background-color: color.change($color-surface-raised, $alpha: 0.45);
-  border: 1px solid color.change($color-accent-strong, $alpha: 0.22);
-  border-radius: $radius-md;
 
   &__header {
     display: flex;
@@ -29,7 +26,7 @@
   &__combo-value {
     font-family: $font-mono;
     font-size: 1rem;
-    color: $color-accent-strong;
+    color: var(--color-accent);
     overflow-wrap: anywhere;
   }
 
@@ -74,12 +71,12 @@
     flex: none;
     width: 1.75rem;
     height: 0.875rem;
-    background-color: $color-surface-raised;
-    border: 1px solid $color-border;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-primary);
     border-radius: $radius-full;
     transition:
-      background-color $duration-base ease,
-      border-color $duration-base ease;
+      background-color $duration-fast ease,
+      border-color $duration-fast ease;
   }
 
   &__switch-thumb {
@@ -88,20 +85,21 @@
     left: 0.125rem;
     width: 0.5rem;
     height: 0.5rem;
-    background-color: $color-text-muted;
+    background-color: var(--color-alt);
     border-radius: $radius-full;
     transition:
-      transform $duration-base ease,
-      background-color $duration-base ease;
+      transform $duration-fast ease,
+      background-color $duration-fast ease;
   }
 
+  /** Flipping the switch inverts the track. */
   &__switch-input:checked + &__switch-track {
-    background-color: color.change($color-accent, $alpha: 0.3);
-    border-color: $color-accent;
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
   }
 
   &__switch-input:checked + &__switch-track &__switch-thumb {
-    background-color: $color-accent-strong;
+    background-color: var(--color-bg);
     transform: translateX(0.875rem);
   }
 
@@ -111,12 +109,12 @@
 
   &__switch-text {
     font-size: 0.75rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__level-text {
     font-size: 0.75rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__level-select {
@@ -127,6 +125,29 @@
     &:focus-visible {
       @include focus-ring;
     }
+  }
+
+  /**
+   * Shown under the header when the drawn route needs max magic the tower level
+   * cannot sell down to. The button re-runs the search at that level.
+   */
+  &__warning {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-3;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--color-accent);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &__warning-action {
+    padding: $space-1 $space-3;
+    font-size: 0.75rem;
   }
 
   /** Holds the board at the panel's content width; a very narrow panel scrolls. */
@@ -142,6 +163,7 @@
     margin: 0 auto;
   }
 
+  /** One wash deeper than the panel, with a bold primary rule. */
   &__box {
     position: absolute;
     display: flex;
@@ -150,7 +172,8 @@
     box-sizing: border-box;
     padding: 0.1875rem 0.4375rem;
     overflow: hidden;
-    border: 1px solid $color-border;
+    background-color: var(--color-primary-soft-2);
+    border: 1px solid var(--color-primary);
     border-radius: $radius-sm;
   }
 
@@ -185,7 +208,7 @@
     font-size: 0.8rem;
     font-weight: 600;
     line-height: 1.15;
-    color: #fff;
+    color: var(--color-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -193,7 +216,7 @@
 
   &__count {
     font-size: 0.5625rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__arrows {
@@ -218,8 +241,8 @@
 
   /** The faded rule between two rows of boxes. */
   &__divider {
-    stroke: #9aaacb;
-    stroke-opacity: 0.18;
+    stroke: var(--color-primary);
+    stroke-opacity: 0.16;
     stroke-width: 1;
     stroke-dasharray: 3 5;
   }
@@ -230,20 +253,20 @@
     font-size: 0.5625rem;
     font-weight: 600;
     paint-order: stroke;
-    stroke: rgba(11, 16, 32, 0.9);
+    stroke: var(--color-bg);
     stroke-width: 2px;
   }
 
   &__empty {
     padding: $space-5 0;
     font-size: 0.8125rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
     text-align: center;
   }
 
   &__hint {
     font-size: 0.75rem;
     line-height: 1.6;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 }

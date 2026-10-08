@@ -26,8 +26,12 @@ export interface RouteRequest {
   metamax: number;
   currentMagic: number;
   startingRefills: 0 | 1 | 2;
-  /** Which auras the route may lean on; a `true` flag assumes one is slotted. */
-  restrictions: { siAllowed: boolean; rbAllowed: boolean };
+  /**
+   * Which auras the route may lean on (a `true` flag assumes one is slotted),
+   * plus the score one Building Special is worth at the player's multiplier and
+   * the max magic a single wizard tower gives at the assumed tower level.
+   */
+  restrictions: { siAllowed: boolean; rbAllowed: boolean; bsScore: number; minMaxMagic: number };
   /** Tower level the instructions assume; 1 when the player did not say. */
   towerLevel: number;
   /** The most towers the player owns, the ceiling an instruction may ask for. */

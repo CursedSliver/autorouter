@@ -11,6 +11,9 @@ Players with a large amount of Wizard towers (typically above 800) can chain var
 - predicts the outcome of a small number of future spells,
 - finds a combination of actions in the Grimoire that will grant the highest multipliers possible.
 
+# Installation
+Go to [https://cursedsliver.github.io/autorouter/](https://cursedsliver.github.io/autorouter/) to use Metarouter.
+
 # Usage guide
 Here's how to use Metarouter to route a section of your save:
 1. Export your save. Options -> Export save -> Ctrl+C (Copy). 
@@ -42,10 +45,13 @@ Q: It's taking a really long time to find a combo.
 A: The router is not a magic wand, and will not find the best combo if supplied with a lot of rows. You can keep waiting, or stop it and reduce the lookahead to make it faster.
 
 Q: The instructions are far too complex!
-A: Adjust the feasibility settings to enforce a simpler route.
+A: Feasibility settings not implemented for now; if you want it to be able to look for simpler spells now, you can implement this feature yourself (please contribute!).
 
 Q: Is the output really the optimal route?
 A: It should be within its limitations, but if you think it isn't for any reason, you can open an issue.
+
+Q: Is this app vibe coded?
+A: Yes and no; core routing logic is entirely handwritten; AI is ONLY used in the creation of the UI.
 
 # Contact
 For feedback, bugs, or suggestions, open up an issue or DM me on Discord: @cursedsliver after joining the [Cookie clicker discord server](https://discord.gg/cookie).
@@ -78,5 +84,5 @@ You can find more information in `src/app/route/microrouter.ts`.
 # Contribute
 Please contribute! We would love a more optimized autorouter that can route more things faster. You can contribute directly by opening up a pull request, however, take note of the following:
 - You must provide an overview of the changes made in the pull request and how it optimizes the performance of routing, alongside **reproducible test** showing increased speed while maintaining accuracy. Though, you can also improve it by adding more mechanics.
+- This app is mostly vibe coded, but the core routing logic is NOT vibe coded. Use of AI is allowed everywhere **except** within the actual search algorithm, in `src/app/route/`. 
 - I will not accept pull requests that only modify the UI or other nonessential parts of the app unless previously addressed in a noteworthy Issue.
-- Use of AI is allowed everywhere **except** within the actual search algorithm, in `src/app/route/`. 

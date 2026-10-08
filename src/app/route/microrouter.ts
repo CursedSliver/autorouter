@@ -125,10 +125,10 @@ export class RouteBoundState {
     efScore: number;
     minOnscreens: number;
     toKeep: '' | 'cf' | 'ef' | 'cfef';
-    constructor(public spells: Spell[], public row: number, public gfthofs: number, type?: PossibleEvaluations) {
-        this.bsScore = 1;
-        this.cfScore = 1.4;
-        this.efScore = 1.3;
+    constructor(public spells: Spell[], public row: number, public gfthofs: number, bsScore: number, type?: PossibleEvaluations) {
+        this.bsScore = bsScore;
+        this.cfScore = 58;
+        this.efScore = 56;
         this.minOnscreens = 0;
         if (!type) {
             this.toKeep = '';
@@ -192,9 +192,8 @@ export class RouteBoundState {
             + (this.bsScore * gfthofs);
     }
     duplicate() {
-        const copy = new RouteBoundState(this.spells, this.row, this.gfthofs);
+        const copy = new RouteBoundState(this.spells, this.row, this.gfthofs, this.bsScore);
         copy.score = this.score;
-        copy.bsScore = this.bsScore;
         copy.cfScore = this.cfScore;
         copy.efScore = this.efScore;
         copy.minOnscreens = this.minOnscreens;
@@ -203,7 +202,15 @@ export class RouteBoundState {
         return copy;
     }
 }
-function routeBounds(spells: Spell[]): Record<PossibleEvaluations, number>[][] {
+/**
+ * The score weights the bound is computed with. `bsScore` is the caller's
+ * Building Special multiplier turned into score; it has to be the same weight
+ * the main router scores states with, or the bound stops bounding.
+ */
+interface RouteBoundsConfig {
+    bsScore: number;
+}
+function routeBounds(spells: Spell[], configs: RouteBoundsConfig): Record<PossibleEvaluations, number>[][] {
     // Output format ...[row][cachedGfthofsCount (calculated based on maximum amount of gfthofs at this time)][BuffAffectedEvaluationRow0]
     let output = new Array(spells.length).fill(undefined);
     for (let row = 0; row < spells.length; row++) {
@@ -215,8 +222,8 @@ function routeBounds(spells: Spell[]): Record<PossibleEvaluations, number>[][] {
                 for (let toKeep of ['', 'cf', 'ef', 'cfef']) {
                     const type = existing + '-' + toKeep as PossibleEvaluations;
                     results[type] = 
-                        iterate(new RouteBoundState(spells, row, gfthofs, type),
-                            new RouteBoundState(spells, row, gfthofs, type)).score;
+                        iterate(new RouteBoundState(spells, row, gfthofs, configs.bsScore, type),
+                            new RouteBoundState(spells, row, gfthofs, configs.bsScore, type)).score;
                 }
             }
             currentRow.push(results);

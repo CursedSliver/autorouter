@@ -8,12 +8,15 @@
   border-radius: $radius-md;
   cursor: pointer;
   transition:
-    background-color $duration-base ease,
-    border-color $duration-base ease,
-    transform $duration-base ease;
+    background-color $duration-fast ease,
+    border-color $duration-fast ease,
+    color $duration-fast ease,
+    transform $duration-fast ease;
 
+  /** Inverting the colours is the whole hover language; it should feel instant. */
   &:hover {
-    background-color: $color-border;
+    color: var(--color-bg);
+    background-color: var(--color-primary);
   }
 
   &:active {
@@ -24,39 +27,42 @@
     @include focus-ring;
   }
 
+  /**
+   * A solid block: inverted by default, so the fill is the primary and the text
+   * is the backdrop. Hovering flips it back to an outline.
+   */
   &--primary {
     font-weight: 600;
-    color: $color-bg;
-    background-color: $color-accent;
-    border-color: $color-accent;
+    color: var(--color-bg);
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
 
     &:hover {
-      background-color: $color-accent-strong;
-      border-color: $color-accent-strong;
+      color: var(--color-primary);
+      background-color: var(--color-bg);
     }
   }
 
   /** What the run button becomes while a search is in flight. */
   &--halt {
     font-weight: 600;
-    color: #ffffff;
-    background-color: #000000;
-    border-color: #3a3a3a;
+    color: var(--color-primary);
+    background-color: var(--color-bg);
+    border-color: var(--color-primary);
 
     &:hover {
-      background-color: #181818;
-      border-color: #565656;
+      color: var(--color-bg);
+      background-color: var(--color-primary);
     }
   }
 
   /** Greyed out with a "no entry" cursor while the form is incomplete. */
   &:disabled,
   &:disabled:hover {
-    color: $color-text-muted;
+    color: var(--color-alt);
     cursor: not-allowed;
-    background-color: $color-surface-raised;
-    border-color: $color-border;
-    opacity: 0.55;
+    background-color: var(--color-bg);
+    border-color: var(--color-alt);
   }
 
   &:disabled:active {

@@ -17,6 +17,14 @@ export const clampTowerLevel = (level: number): number =>
   Math.min(Math.max(Math.round(level), MIN_TOWER_LEVEL), MAX_TOWER_LEVEL);
 
 /**
+ * The least max magic a tower level can reach: what a single tower gives. Level
+ * is the only input besides the count, so this floor rises with the level and a
+ * route that sells below it cannot be played at that level.
+ */
+export const minimumMaxMagic = (level: number): number =>
+  towerCountToMaxMagic(MIN_TOWER_COUNT, clampTowerLevel(level));
+
+/**
  * The fewest towers whose max magic reaches `maxMagic` at `level`. Max magic
  * grows with the tower count, so a binary search finds the crossing: the exact
  * count that lands on the target may not exist, and the request is the smallest

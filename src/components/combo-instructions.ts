@@ -12,7 +12,7 @@
  * be drawn in the same pass.
  */
 import type { ComboInstructionsData, PolishedAction } from "../app/route/polish";
-import { MAX_TOWER_LEVEL, MIN_TOWER_LEVEL } from "../lib/max-magic";
+import { MAX_TOWER_LEVEL, MIN_TOWER_LEVEL, minimumMaxMagic } from "../lib/max-magic";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -45,10 +45,10 @@ const HEAD = 5;
 const ARROW_INSET = 7;
 /** Width used before the panel has been laid out and has a real width. */
 const FALLBACK_WIDTH = 960;
-/** The colour of the chain of default arrows. */
-const DEFAULT_ARROW_COLOR = "#cfe0ff";
-/** Lane colours, the first a faded yellow; each lane further out steps down. */
-const LANE_COLORS = ["#ffd500", "#ff8f3f", "#ff5d8f", "#4dd4ff", "#8bff6b", "#c08bff"];
+/** The colour of the chain of default arrows, as the theme's own tokens. */
+const DEFAULT_ARROW_COLOR = "var(--color-primary)";
+/** Lane colours: the palette's two rules, alternating so stacked lanes stay apart. */
+const LANE_COLORS = ["var(--color-accent)", "var(--color-primary)"];
 /** How far two runs must overlap before they count as sharing a lane. */
 const MIN_OVERLAP = 3;
 /** How far above an arrow its tower-count change sits. */
@@ -118,6 +118,8 @@ interface Layout {
 export interface ComboInstructionsOptions {
   /** Ask the worker to re-polish the last route at a tower level. */
   requestPolish: (towerLevel: number) => Promise<ComboInstructionsData>;
+  /** Run the search again at a tower level the panel's warning asked for. */
+  requestReroute: (towerLevel: number) => void;
 }
 
 export interface ComboInstructions {
@@ -126,6 +128,19 @@ export interface ComboInstructions {
   render(data: ComboInstructionsData): void;
   /** Re-polish the route for a different tower level and repaint it. */
   setTowerLevel(level: number): void;
+}
+
+/**
+ * Whether the route asks for a max magic its tower level cannot reach. A level
+ * can only sell down to what a single tower gives, so a step priced below that
+ * floor has to be routed again rather than followed.
+ */
+function levelTooHigh(data: ComboInstructionsData): boolean {
+  const floor = minimumMaxMagic(data.towerLevel);
+
+  return data.actions.some(
+    (action) => action.requiredMagic !== null && action.requiredMagic < floor,
+  );
 }
 
 const round = (value: number): number => Math.round(value * 100) / 100;
@@ -148,23 +163,6 @@ const escapeHtml = (text: string): string =>
         return "&#39;";
     }
   });
-
-/** The same colour at the given alpha, or a neutral fallback if it cannot be read. */
-function withAlpha(color: string, alpha: number): string {
-  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
-
-  if (!match) return `rgba(232, 236, 248, ${alpha})`;
-
-  let hex = match[1]!;
-  if (hex.length === 3) hex = hex.split("").map((part) => part + part).join("");
-
-  const value = Number.parseInt(hex, 16);
-  const red = (value >> 16) & 0xff;
-  const green = (value >> 8) & 0xff;
-  const blue = value & 0xff;
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
 
 /**
  * Place every box and draw the arrows between them.
@@ -551,6 +549,12 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
         </label>
       </div>
     </div>
+    <p class="ci__warning" data-level-warning hidden>
+      Warning: tower level too high, certain magic counts are impossible.
+      <button class="button ci__warning-action" type="button" data-recalculate>
+        Recalculate
+      </button>
+    </p>
     <div class="ci__scroll" data-scroll>
       <div class="ci__board" role="list" data-board></div>
     </div>
@@ -558,7 +562,7 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
       Follow the boxes in order. 
       "Resolve GFD" indicates waiting for a GFD cast's selected spell to be casted after casting the GFD.
       <span data-dashed-hint>
-      The faded dashed lines indicate that all actions in between two linked boxes
+      Dashed lines indicate that all actions in between the two linked boxes
       must be completed in <b>1 second or less</b>.
       </span>
     </p>
@@ -568,6 +572,8 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
   const levelSelect = element.querySelector<HTMLSelectElement>("[data-level]")!;
   const dashedInput = element.querySelector<HTMLInputElement>("[data-dashed]")!;
   const dashedHint = element.querySelector<HTMLElement>("[data-dashed-hint]")!;
+  const levelWarning = element.querySelector<HTMLElement>("[data-level-warning]")!;
+  const recalculateButton = element.querySelector<HTMLButtonElement>("[data-recalculate]")!;
   const scroll = element.querySelector<HTMLElement>("[data-scroll]")!;
   const board = element.querySelector<HTMLElement>("[data-board]")!;
 
@@ -608,8 +614,6 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
       boxElement.style.top = `${round(box.y)}px`;
       boxElement.style.width = `${BOX_W}px`;
       boxElement.style.height = `${BOX_H}px`;
-      boxElement.style.borderColor = action.color;
-      boxElement.style.backgroundColor = withAlpha(action.color, 0.3);
       boxElement.setAttribute("role", "listitem");
       boxElement.setAttribute(
         "aria-label",
@@ -650,6 +654,7 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
     comboValue.textContent = data.combo;
     levelSelect.value = String(clampLevel(data.towerLevel));
     dashedHint.hidden = !showAdditional;
+    levelWarning.hidden = !levelTooHigh(data);
     paint();
   };
 
@@ -669,6 +674,12 @@ export function createComboInstructions(options: ComboInstructionsOptions): Comb
 
   levelSelect.addEventListener("change", () => {
     setTowerLevel(Number.parseInt(levelSelect.value, 10));
+  });
+
+  // The warning's button is the only way to get a route that fits the level: the
+  // tower counts cannot be fixed up, because the magic steps themselves change.
+  recalculateButton.addEventListener("click", () => {
+    options.requestReroute(clampLevel(Number.parseInt(levelSelect.value, 10)));
   });
 
   // Hiding the additional arrows takes their lanes away with them, so the rows

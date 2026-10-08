@@ -9,7 +9,7 @@
   &__caption {
     padding-bottom: $space-3;
     font-size: 0.8125rem;
-    color: $color-text-muted;
+    color: var(--color-alt);
     text-align: left;
   }
 
@@ -17,14 +17,14 @@
   td {
     padding: $space-2;
     text-align: center;
-    border-bottom: 1px solid $color-border;
+    border-bottom: 1px solid var(--color-primary);
   }
 
   thead th {
     font-family: $font-mono;
     font-size: 0.75rem;
     font-weight: 500;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__index {
@@ -32,13 +32,14 @@
     font-family: $font-mono;
     font-size: 0.75rem;
     font-weight: 400;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 
   &__row:hover {
-    background-color: rgba(91, 140, 255, 0.06);
+    background-color: var(--color-primary-soft);
   }
 
+  /** A solid block too: picking it inverts the checkbox. */
   &__toggle {
     display: inline-grid;
     place-items: center;
@@ -48,26 +49,26 @@
     vertical-align: middle;
     appearance: none;
     cursor: pointer;
-    background-color: $color-surface-raised;
-    border: 1px solid $color-border;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-primary);
     border-radius: $radius-sm;
     transition:
-      background-color $duration-base ease,
-      border-color $duration-base ease;
+      background-color $duration-fast ease,
+      border-color $duration-fast ease;
 
     &::after {
       content: "";
       width: 0.5rem;
       height: 0.25rem;
-      border-bottom: 2px solid $color-bg;
-      border-left: 2px solid $color-bg;
+      border-bottom: 2px solid var(--color-bg);
+      border-left: 2px solid var(--color-bg);
       transform: rotate(-45deg) scale(0);
-      transition: transform $duration-base ease;
+      transition: transform $duration-fast ease;
     }
 
     &:checked {
-      background-color: $color-accent;
-      border-color: $color-accent;
+      background-color: var(--color-primary);
+      border-color: var(--color-primary);
 
       &::after {
         transform: rotate(-45deg) scale(1);
@@ -102,18 +103,18 @@
     height: 1.75rem;
     font-size: 1rem;
     line-height: 1;
-    color: $color-text-muted;
+    color: var(--color-alt);
     cursor: pointer;
     background-color: transparent;
-    border: 1px solid $color-border;
+    border: 1px solid var(--color-primary);
     border-radius: $radius-sm;
     transition:
-      color $duration-base ease,
-      border-color $duration-base ease;
+      color $duration-fast ease,
+      border-color $duration-fast ease;
 
     &:hover {
-      color: $color-danger;
-      border-color: $color-danger;
+      color: var(--color-accent);
+      border-color: var(--color-accent);
     }
 
     &:focus-visible {
@@ -123,6 +124,6 @@
 
   &__empty {
     padding: $space-5;
-    color: $color-text-muted;
+    color: var(--color-alt);
   }
 }

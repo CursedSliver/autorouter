@@ -2,6 +2,7 @@ import type { PossibleEvaluations } from "./microrouter";
 import routeBounds from "./microrouter";
 import { maxMagicToTowerCount } from "./seedgen";
 import { RangedTransmuteGuides, getRangeFromRS } from "./tables";
+import { bsScoreFor, DEFAULT_BS_MULT } from "../../lib/spell";
 
 export interface Spell {
     bs: boolean;
@@ -25,12 +26,30 @@ export interface PolishInstructions {
     text: string;
     icon: [number, number, string];
     towerCounts: (state: RouteState, lvl: number) => [number, number]; // [min, max)
+    /**
+     * The max magic the step has to be run at, or null when the step does not
+     * care (a resolve's price was fixed when its GFD was cast). Omitted, it is
+     * the state's own magic, which is what a cast is priced off. A tower level
+     * cannot sell below one tower's worth of max magic, so a step that asks for
+     * less than that cannot be played and the instructions say so.
+     */
+    requiredMagic?: (state: RouteState) => number | null;
     color: string;
+}
+enum WTChangeFlags {
+    NONE, // Does not change wizard tower count
+    BEST, // Reducing wizard tower count will grant a boost
+    OFTEN, // Changing wizard tower count is sometimes required to make it work
+    ABOVE_MAX, // Only change wizard tower count if magic would overflow, changes to a special value that accomodates for the next cast?
+    MANDATORY // Must change wizard tower count
 }
 export interface Action {
     name: string; // in generated actions the name contains the parameters separated by the dash
     invoke: (state: RouteState) => unknown;
     able: (state: RouteState) => boolean; // is called before a new state object is duplicated therefore do not mutate state here
+    wtChange: WTChangeFlags;
+    maxMagicTo?: (state: RouteState) => number | -1; // Differs per wtChange flag. 
+    // Called before invoke on BEST, MANDATORY, and OFTEN, not called on NONE and ABOVE_MAX
     gfdCost?: (state: RouteState) => number;
     polish?: PolishInstructions;
 }
@@ -38,7 +57,8 @@ export const Actions: Action[] = [
     {
         name: 'preComboSkip',
         invoke: state => state.increment(),
-        able: state => (!state.parent || state.action === 'preComboSkip')
+        able: state => (!state.parent || state.action === 'preComboSkip'),
+        wtChange: WTChangeFlags.NONE
     },
     {
         name: 'fthof-cf',
@@ -63,6 +83,8 @@ export const Actions: Action[] = [
         },
         gfdCost: state => state.getCost(10, 0.6),
         able: state => state.currentMagic >= state.getCost(10, 0.6) && !!(state.peek() && state.peek()!.cf) && !state.cf,
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast FtHoF',
             icon: [22, 11, 'icons.png'],
@@ -81,6 +103,8 @@ export const Actions: Action[] = [
         },
         gfdCost: state => state.getCost(10, 0.6),
         able: state => state.currentMagic >= state.getCost(10, 0.6) && state.backfiresFthof(state.backfireMult) && !!(state.peek() && state.peek()!.ef) && !state.ef,
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast FtHoF',
             icon: [22, 11, 'icons.png'],
@@ -107,6 +131,8 @@ export const Actions: Action[] = [
         },
         gfdCost: state => state.getCost(10, 0.6),
         able: state => state.currentMagic >= state.getCost(10, 0.6) && !!(state.peek() && state.peek()!.bs),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast FtHoF',
             icon: [22, 11, 'icons.png'],
@@ -119,10 +145,12 @@ export const Actions: Action[] = [
         name: 'g!fthof',
         invoke: state => tryCastGFDTo(1, state, 10, 0.6),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 1), lvl),
+            requiredMagic: state => getTransmuteMax(state, 1),
             color: '#fb6914'
         }
     },
@@ -130,10 +158,12 @@ export const Actions: Action[] = [
         name: 'resolve',
         invoke: state => state.resolve(),
         able: state => !!state.pendingResolves.length && state.pendingResolves[0]!.spell !== SpellIndices.FTHOF,
+        wtChange: WTChangeFlags.ABOVE_MAX,
         polish: {
             text: 'Resolve GFD',
             icon: [17, 14, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic, lvl),
+            requiredMagic: () => null,
             color: '#fb6914'
         }
     },
@@ -163,10 +193,12 @@ export const Actions: Action[] = [
             state.pendingResolves.shift();
         },
         able: state => state.pendingResolves[0]?.spell === SpellIndices.FTHOF && !!(state.peek() && state.peek()!.cf) && !state.cf,
+        wtChange: WTChangeFlags.ABOVE_MAX,
         polish: {
             text: 'Resolve GFD',
             icon: [17, 14, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic, lvl),
+            requiredMagic: () => null,
             color: '#fb6914'
         }
     },
@@ -186,10 +218,12 @@ export const Actions: Action[] = [
             state.pendingResolves.shift();
         },
         able: state => state.pendingResolves[0]?.spell === SpellIndices.FTHOF && state.backfiresGFDFthof(state.backfireMult) && !!(state.peek() && state.peek()!.ef) && !state.ef,
+        wtChange: WTChangeFlags.ABOVE_MAX,
         polish: {
             text: 'Resolve GFD',
             icon: [17, 14, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic, lvl),
+            requiredMagic: () => null,
             color: '#fb6914'
         }
     },
@@ -219,10 +253,12 @@ export const Actions: Action[] = [
             state.pendingResolves.shift();
         },
         able: state => state.pendingResolves[0]?.spell === SpellIndices.FTHOF && !!(state.peek() && state.peek()!.bs),
+        wtChange: WTChangeFlags.ABOVE_MAX,
         polish: {
             text: 'Resolve GFD',
             icon: [17, 14, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic, lvl),
+            requiredMagic: () => null,
             color: '#fb6914'
         }
     },
@@ -230,10 +266,12 @@ export const Actions: Action[] = [
         name: 'g!ra',
         invoke: state => tryCastGFDTo(6, state, 20, 0.1),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 6), lvl),
+            requiredMagic: state => getTransmuteMax(state, 6),
             color: '#fb6914'
         }
     },
@@ -241,10 +279,12 @@ export const Actions: Action[] = [
         name: 'g!se',
         invoke: state => tryCastGFDTo(3, state, 20, 0.75),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 3), lvl),
+            requiredMagic: state => getTransmuteMax(state, 3),
             color: '#fb6914'
         }
     },
@@ -252,10 +292,12 @@ export const Actions: Action[] = [
         name: 'g!hc',
         invoke: state => tryCastGFDTo(4, state, 10, 0.1),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 4), lvl),
+            requiredMagic: state => getTransmuteMax(state, 4),
             color: '#fb6914'
         }
     },
@@ -263,10 +305,12 @@ export const Actions: Action[] = [
         name: 'g!di',
         invoke: state => tryCastGFDTo(7, state, 5, 0.2),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 7), lvl),
+            requiredMagic: state => getTransmuteMax(state, 7),
             color: '#fb6914'
         }
     },
@@ -275,6 +319,8 @@ export const Actions: Action[] = [
         invoke: state => state.castSpell(10, 0.1),
         gfdCost: state => state.getCost(10, 0.1),
         able: state => state.currentMagic >= state.getCost(10, 0.1),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast HC',
             icon: [25, 11, 'icons.png'],
@@ -295,6 +341,8 @@ export const Actions: Action[] = [
         },
         gfdCost: state => state.getCost(5, 0.2),
         able: state => state.currentMagic >= state.getCost(5, 0.2),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast DI',
             icon: [29, 11, 'icons.png'],
@@ -312,6 +360,8 @@ export const Actions: Action[] = [
         },
         gfdCost: state => state.getCost(2, 0.4),
         able: state => state.currentMagic >= state.getCost(2, 0.4),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast CBG',
             icon: [21, 11, 'icons.png'],
@@ -326,6 +376,8 @@ export const Actions: Action[] = [
             state.onscreens++;
         },
         able: state => state.currentMagic >= state.getCost(10, 0.6),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast FtHoF',
             icon: [22, 11, 'icons.png'],
@@ -338,6 +390,8 @@ export const Actions: Action[] = [
         invoke: state => state.castSpell(8, 0.2),
         gfdCost: state => state.getCost(8, 0.2),
         able: state => state.currentMagic >= state.getCost(8, 0.2),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast ST',
             icon: [23, 11, 'icons.png'],
@@ -350,6 +404,8 @@ export const Actions: Action[] = [
         invoke: state => state.castSpell(10, 0.2),
         gfdCost: state => state.getCost(10, 0.2),
         able: state => state.currentMagic >= state.getCost(10, 0.2),
+        wtChange: WTChangeFlags.BEST,
+        maxMagicTo: state => state.currentMagic,
         polish: {
             text: 'Cast SCP',
             icon: [26, 11, 'icons.png'],
@@ -362,10 +418,15 @@ export const Actions: Action[] = [
         invoke: state => state.refill(),
         // at exactly metamax a refill spends a charge for no magic, which is strictly dominated
         able: state => state.refills > 0 && state.currentMagic !== state.metamax,
+        wtChange: WTChangeFlags.OFTEN,
+        maxMagicTo: state => Math.max(state.currentMagic + 100, state.maxMagic),
         polish: {
             text: 'Refill magic',
             icon: [29, 14, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(state.currentMagic + 100, lvl),
+            // The refill has to hold the magic it restores, so it is priced one
+            // chunk above the state's own magic.
+            requiredMagic: state => state.currentMagic + 100,
             color: '#ffffff'
         }
     },
@@ -373,10 +434,12 @@ export const Actions: Action[] = [
         name: 'g!st',
         invoke: state => tryCastGFDTo(2, state, 8, 0.2),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 2), lvl),
+            requiredMagic: state => getTransmuteMax(state, 2),
             color: '#fb6914'
         }
     },
@@ -384,10 +447,12 @@ export const Actions: Action[] = [
         name: 'g!cbg',
         invoke: state => tryCastGFDTo(0, state, 2, 0.4),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 0), lvl),
+            requiredMagic: state => getTransmuteMax(state, 0),
             color: '#fb6914'
         }
     },
@@ -395,10 +460,12 @@ export const Actions: Action[] = [
         name: 'g!scp',
         invoke: state => tryCastGFDTo(5, state, 10, 0.2),
         able: state => state.currentMagic >= state.getCost(3, 0.05, 1),
+        wtChange: WTChangeFlags.OFTEN,
         polish: {
             text: 'Cast GFD',
             icon: [27, 11, 'icons.png'], 
             towerCounts: (state, lvl) => maxMagicToTowerCount(getTransmuteMax(state, 5), lvl),
+            requiredMagic: state => getTransmuteMax(state, 5),
             color: '#fb6914'
         }
     }
@@ -411,7 +478,7 @@ function tryCastGFDTo(spellIndex: SpellIndices, state: RouteState, baseCost: num
     const row = RangedTransmuteGuides[range]![spellIndex][state.currentMagic];
     if (!row) { return Symbol.for('Cancel action'); }
     const offset = 1 << (3 - (state.restrictions.siAllowed ? 1 : 0) - (state.restrictions.rbAllowed ? 2 : 0));
-    for (let i = Math.ceil(state.currentMagic); i <= state.metamax; i++) {
+    for (let i = Math.max(Math.ceil(state.currentMagic), state.restrictions.minMaxMagic); i <= state.metamax; i++) {
         if (row[i]! & offset) {  
             state.addResolve(state.castSpell(3, 0.05, i), 
                 Math.floor(state.costMult * (baseCost + portionCost * i)) / 2, 
@@ -433,7 +500,7 @@ function getTransmuteMax(state: RouteState, spellIndex: SpellIndices, mask?: 1 |
     const anchor = state.parent ?? state;
     const row = RangedTransmuteGuides[range]![spellIndex][anchor.currentMagic];
     if (!row) { return NaN; }
-    for (let i = Math.ceil(state.currentMagic); i <= state.metamax; i++) {
+    for (let i = Math.max(Math.ceil(state.currentMagic), state.restrictions.minMaxMagic); i <= state.metamax; i++) {
         if (row[i]! & mask) {
             return i;
         }
@@ -450,13 +517,22 @@ export interface RouteStep {
     action: string;
     magic: number;
 }
-const DefaultRestrictions = {
-    siAllowed: false,
-    rbAllowed: false
-}
+/**
+ * What one Building Special scores when the caller does not name a multiplier:
+ * the form's own default, which the score scale puts at 20.
+ */
+const DEFAULT_BS_SCORE = bsScoreFor(DEFAULT_BS_MULT);
 export class RouteState {
-    constructor(public parent: RouteState | null, public spells: Spell[], public currentMagic: number, public spellIndex: number, public metamax: number, public refills: 0 | 1 | 2) {
-
+    constructor(public parent: RouteState | null, 
+        public spells: Spell[], 
+        public currentMagic: number, 
+        public maxMagic: number,
+        public spellIndex: number, 
+        public metamax: number, 
+        public refills: 0 | 1 | 2,
+        public valueEvaluationList: Record<PossibleEvaluations, number>[][] | null = null,
+        public restrictions: RouteInput["restrictions"]) {
+        this.setRestrictions(restrictions);
     }
     peek() {
         return this.spells[this.spellIndex];
@@ -467,16 +543,17 @@ export class RouteState {
     ended() {
         return this.spellIndex >= this.spells.length;
     }
-    valueEvaluationList: Record<PossibleEvaluations, number>[][] | null = null;
-    initializeValueEvaluationList() {
-        this.valueEvaluationList = routeBounds(this.spells);
-        return this;
+    static initializeValueEvaluationList(spells: Spell[], restrictions: RouteInput["restrictions"]) {
+        return routeBounds(spells, { bsScore: restrictions.bsScore });
     }
-    restrictions: RouteInput["restrictions"] = DefaultRestrictions;
+    timeSteps: number = 0; // Amount of max magic updates taken, if update max magic then must update time step
+    updateMaxMagic(max: number) {
+        this.timeSteps++;
+        this.maxMagic = max;
+    }
     backfireMult: 1 | 1.01 | 1.1 | 1.11 = 1;
     costMult: 1 | 0.99 | 0.9 | 0.89 = 1;
     setRestrictions(restrictions: RouteInput["restrictions"]) {
-        this.restrictions = restrictions;
         this.backfireMult = 1 + (restrictions.siAllowed ? 0.1 : 0) + (restrictions.rbAllowed ? 0.01 : 0) as (1 | 1.01 | 1.1 | 1.11);
         this.costMult = 1 - (restrictions.siAllowed ? 0.1 : 0) - (restrictions.rbAllowed ? 0.01 : 0) as (1 | 0.99 | 0.9 | 0.89);
         return this;
@@ -537,7 +614,7 @@ export class RouteState {
         return spell.gfdRs >= Math.min(1 - this.backfireChance(mult) - 0.15 * this.onscreens, 0.5);
     }
     getCost(base: number, portion: number, max?: number) {
-        return Math.floor(this.costMult * (base + portion * (max ?? Math.ceil(this.currentMagic))));
+        return Math.floor(this.costMult * (base + portion * Math.max(max ?? Math.ceil(this.currentMagic), this.restrictions.minMaxMagic)));
     }
     castArbitrary(magic: number) {
         this.currentMagic -= magic;
@@ -608,8 +685,14 @@ export class RouteState {
         this.computeCurrent();
     }
     _currentValue = 0;
+    /**
+     * The score of the buffs banked so far: one Building Special is worth
+     * `bsScore` and stacks, a Click Frenzy 58, an Elder Frenzy 56 and a clot -6.
+     * Every term is a whole number, so nothing about the ranking can turn on a
+     * rounding error.
+     */
     computeCurrent() {
-        this._currentValue = this.bs + (this.cf?1.4:0) + (this.ef?1.3:0) - (this.clot?0.1:0);
+        this._currentValue = this.bs * this.restrictions.bsScore + (this.cf?58:0) + (this.ef?56:0) - (this.clot?6:0);
     }
     currentValue() {
         return this._currentValue;
@@ -664,7 +747,15 @@ export class RouteState {
     }
 
     duplicate() {
-        const n = new RouteState(this, this.spells, this.currentMagic, this.spellIndex, this.metamax, this.refills);
+        const n = new RouteState(this, 
+            this.spells, 
+            this.currentMagic, 
+            this.maxMagic,
+            this.spellIndex, 
+            this.metamax, 
+            this.refills,
+            this.valueEvaluationList,
+            this.restrictions);
         n.bs = this.bs;
         n.cf = this.cf;
         n.ef = this.ef;
@@ -673,8 +764,8 @@ export class RouteState {
         n.clot = this.clot;
         n.pendingResolves = this.pendingResolves.length > 0 ? this.pendingResolves.map(gfd => ({ ...gfd })) : [];
         n.onscreens = this.onscreens;
-        n.valueEvaluationList = this.valueEvaluationList; // intentional shallow copy
-        n.setRestrictions(this.restrictions); // Intentional shallow copy
+        n.timeSteps = this.timeSteps;
+        n.maxMagic = this.maxMagic;
         n.computeCurrent();
         return n;
     }
@@ -702,6 +793,9 @@ interface RouteInput {
     restrictions: {
         siAllowed: boolean;
         rbAllowed: boolean;
+        /** What one Building Special is worth, from the caller's own multiplier. */
+        bsScore: number;
+        minMaxMagic: number;
     }
     index?: number,
     onProgress?: (progress: RouteProgress) => void
@@ -723,9 +817,18 @@ export interface RouteProgress {
     combo: RouteCombo;
 }
 function route(info: RouteInput) {
-    const root = new RouteState(null, info.spells, info.currentMagic, info.index ?? 0, info.metamax, info.startingRefills)
-        .initializeValueEvaluationList()
-        .setRestrictions(info.restrictions);
+    // The restrictions come first: they carry the weights the ceiling is scored
+    // with, so the value evaluation list has to be built after them.
+    const root = new RouteState(null, 
+        info.spells, 
+        info.currentMagic, 
+        info.currentMagic,
+        info.index ?? 0, 
+        info.metamax, 
+        info.startingRefills,
+        RouteState.initializeValueEvaluationList(info.spells, info.restrictions),
+        info.restrictions
+    );
     const routeInfo: RouteInfo = { 
         goal: info.goal, 
         steps: 0,
@@ -737,7 +840,7 @@ function route(info: RouteInput) {
     const best = iterate(
         root, 
         routeInfo, 
-        new RouteState(null, [], 0, 0, info.metamax, 0)
+        new RouteState(null, [], 0, 0, 0, info.metamax, 0, RouteState.initializeValueEvaluationList(info.spells, info.restrictions), info.restrictions)
     );
     reportProgress(routeInfo);
     return best;
@@ -770,7 +873,10 @@ function iterate(routeState: RouteState, routeInfo: RouteInfo, bestState: RouteS
                 equivalentNextBest.currentValue() >= next.currentValue() && 
                 equivalentNextBest.currentMagic >= next.currentMagic &&
                 equivalentNextBest.di === next.di &&
-                equivalentNextBest.diB === next.diB
+                equivalentNextBest.diB === next.diB &&
+                equivalentNextBest.cf === next.cf &&
+                equivalentNextBest.ef === next.ef &&
+                equivalentNextBest.refills >= next.refills
             )) {
                 continue;
             }
@@ -779,7 +885,10 @@ function iterate(routeState: RouteState, routeInfo: RouteInfo, bestState: RouteS
                 equivalentCurrentBest.currentValue() >= next.currentValue() &&
                 equivalentCurrentBest.currentMagic >= next.currentMagic &&
                 equivalentCurrentBest.di === next.di &&
-                equivalentCurrentBest.diB === next.diB
+                equivalentCurrentBest.diB === next.diB &&
+                equivalentCurrentBest.cf === next.cf &&
+                equivalentCurrentBest.ef === next.ef &&
+                equivalentCurrentBest.refills >= next.refills
             )) {
                 continue;
             }
@@ -800,11 +909,7 @@ function iterate(routeState: RouteState, routeInfo: RouteInfo, bestState: RouteS
             bestState = result;
         }
         if (value > routeInfo.bestScore) {
-            // Every visited state is reachable, so the running maximum is a score
-            // the search could report: that is what a halt mid-search would show.
             routeInfo.bestScore = value;
-            // Keep the score and the combo in step: the combo always describes the
-            // state that earned the reported score.
             routeInfo.bestCombo = { bs: result.bs, cf: result.cf, ef: result.ef, clot: result.clot };
         }
     }

@@ -18,8 +18,9 @@
  * - The fail chance for Force the Hand of Fate grows by `0.15` per golden/wrath
  *   cookie on screen, and `toKeep` means those cookies cannot be clicked, so
  *   `minOnscreens` is a mandatory, monotonically growing floor.
- * - `bs` scores 1 and stacks; `cf` scores 1.4 and `ef` 1.3, and both are
- *   one-shot (their scores zero out once held).
+ * - `bs` scores the configured `bsScore` (40 in this suite) and stacks; `cf`
+ *   scores 58 and `ef` 56, and both are one-shot (their scores zero out once
+ *   held).
  * - `resolve-*` settles a pending g!fthof without consuming the row, so a row's
  *   `bs` can be paid by a resolve and then again by a direct cast.
  *
@@ -95,6 +96,27 @@ const G = (gfdRs: number): Spell => createSpell({ gfdRs });
 
 type BoundTable = Record<PossibleEvaluations, number>[][];
 
+/**
+ * The score weights this suite runs at: a Building Special worth 40 (a x100
+ * multiplier) with the fixed cf/ef weights the router uses. 40 is deliberately
+ * not the router's own default, so a bound or a state built without the profile
+ * fails loudly instead of passing by luck.
+ */
+const BS_SCORE = 40;
+const CF_SCORE = 58;
+const EF_SCORE = 56;
+
+/** `routeBounds` at the profile's BS weight, so the config is written once. */
+const bounds = (spells: Spell[]): BoundTable => routeBounds(spells, { bsScore: BS_SCORE });
+
+/** `new RouteBoundState` at the profile's BS weight. */
+const boundState = (
+  spells: Spell[],
+  row: number,
+  gfthofs: number,
+  type?: PossibleEvaluations,
+): RouteBoundState => new RouteBoundState(spells, row, gfthofs, BS_SCORE, type);
+
 /** The bound for one (row, pending g!fthofs, type) cell, with shape checks. */
 function bound(table: BoundTable, row: number, gfthofs: number, type: PossibleEvaluations): number {
   const slots = table[row];
@@ -127,12 +149,12 @@ function boundCell(
 
 describe("routeBounds(): table shape", () => {
   it("returns an empty table for an empty queue", () => {
-    assert.deepEqual(routeBounds([]), []);
+    assert.deepEqual(bounds([]), []);
   });
 
   it("has one row per spell and one pending slot per prefix g!fthof source", () => {
     const spells = [G(0.2), BS(0.5), G(0.3), CF(0.4), EF(0.99)];
-    const table = routeBounds(spells);
+    const table = bounds(spells);
 
     assert.equal(table.length, spells.length);
     for (let row = 0; row < spells.length; row++) {
@@ -147,16 +169,16 @@ describe("routeBounds(): table shape", () => {
   });
 
   it("gives row 0 a single all-zero-pending slot even when it is a g!fthof source", () => {
-    const table = routeBounds([G(0.2), BS(0.2)]);
+    const table = bounds([G(0.2), BS(0.2)]);
 
     assert.equal(table[0]?.length, 1, "nothing has been cast before the first row");
     assert.equal(table[1]?.length, 2, "the g!fthof on row 0 can be pending at row 1");
   });
 
   it("gates the pending dimension on the same window as g!fthof itself", () => {
-    const justOutside = routeBounds([G(GFD_FTHOF_MIN - 0.001), BS(0.2)]);
-    const atFloor = routeBounds([G(GFD_FTHOF_MIN), BS(0.2)]);
-    const atCeiling = routeBounds([G(GFD_FTHOF_MAX), BS(0.2)]);
+    const justOutside = bounds([G(GFD_FTHOF_MIN - 0.001), BS(0.2)]);
+    const atFloor = bounds([G(GFD_FTHOF_MIN), BS(0.2)]);
+    const atCeiling = bounds([G(GFD_FTHOF_MAX), BS(0.2)]);
 
     assert.equal(justOutside[1]?.length, 1, "below the window there is nothing to resolve");
     assert.equal(atFloor[1]?.length, 2, "0.125 is inside the window");
@@ -171,7 +193,7 @@ describe("routeBounds(): table shape", () => {
     );
 
     const spells = [G(0.2), BS(0.2), CF(0.5)];
-    const table = routeBounds(spells);
+    const table = bounds(spells);
     for (let row = 0; row < table.length; row++) {
       for (let gfthofs = 0; gfthofs < table[row]!.length; gfthofs++) {
         const cell = boundCell(table, row, gfthofs);
@@ -187,8 +209,8 @@ describe("routeBounds(): table shape", () => {
     const spells = [G(0.2), BS(0.2), EF(0.9)];
     const before = spells.map((spell) => ({ ...spell }));
 
-    const first = routeBounds(spells);
-    const second = routeBounds(spells);
+    const first = bounds(spells);
+    const second = bounds(spells);
 
     assert.deepEqual(spells, before, "the queue must not be mutated");
     assert.deepEqual(second, first, "the bound is deterministic");
@@ -202,32 +224,35 @@ describe("routeBounds(): table shape", () => {
  * -------------------------------------------------------------------------- */
 
 describe("routeBounds(): score model", () => {
-  it("scores a plain cast as bs 1, cf 1.4 and ef 1.3", () => {
-    assert.equal(bound(routeBounds([BS(0.5)]), 0, 0, typeKey("", "")), 1);
-    assert.equal(bound(routeBounds([CF(0.5)]), 0, 0, typeKey("", "")), 1.4);
-    assert.equal(bound(routeBounds([EF(0.5)]), 0, 0, typeKey("", "")), 1.3);
+  it("scores a plain cast as bs BS_SCORE, cf 58 and ef 56", () => {
+    assert.equal(bound(bounds([BS(0.5)]), 0, 0, typeKey("", "")), BS_SCORE);
+    assert.equal(bound(bounds([CF(0.5)]), 0, 0, typeKey("", "")), CF_SCORE);
+    assert.equal(bound(bounds([EF(0.5)]), 0, 0, typeKey("", "")), EF_SCORE);
   });
 
   it("accumulates across independent rows", () => {
-    assert.equal(bound(routeBounds([BS(0.2), BS(0.3), CF(0.4)]), 0, 0, typeKey("", "")), 3.4);
+    assert.equal(
+      bound(bounds([BS(0.2), BS(0.3), CF(0.4)]), 0, 0, typeKey("", "")),
+      2 * BS_SCORE + CF_SCORE,
+    );
   });
 
   it("lets bs stack but keeps cf and ef one-shot", () => {
-    assert.equal(bound(routeBounds([BS(0.2), BS(0.2), BS(0.2)]), 0, 0, typeKey("", "")), 3);
+    assert.equal(bound(bounds([BS(0.2), BS(0.2), BS(0.2)]), 0, 0, typeKey("", "")), 3 * BS_SCORE);
 
     // A second cf is worth nothing: the first one zeroes `cfScore` and the
     // direct action refuses to run without a score to pay.
-    assert.equal(bound(routeBounds([CF(0.2), CF(0.2)]), 0, 0, typeKey("", "")), 1.4);
-    assert.equal(bound(routeBounds([EF(0.2), EF(0.2)]), 0, 0, typeKey("", "")), 1.3);
+    assert.equal(bound(bounds([CF(0.2), CF(0.2)]), 0, 0, typeKey("", "")), CF_SCORE);
+    assert.equal(bound(bounds([EF(0.2), EF(0.2)]), 0, 0, typeKey("", "")), EF_SCORE);
   });
 
   it("ignores dfBs, which the search does not model yet", () => {
     const dfOnly = createSpell({ dfBs: true, gfdRs: 0.2 });
-    assert.equal(bound(routeBounds([dfOnly]), 0, 0, typeKey("", "")), 0);
+    assert.equal(bound(bounds([dfOnly]), 0, 0, typeKey("", "")), 0);
   });
 
   it("scores nothing on a row with no effects", () => {
-    const table = routeBounds([G(0.5)]);
+    const table = bounds([G(0.5)]);
     for (const type of ALL_TYPES) {
       assert.equal(bound(table, 0, 0, type), 0, type);
     }
@@ -240,21 +265,21 @@ describe("routeBounds(): score model", () => {
 
 describe("routeBounds(): success threshold and mandatory onscreens", () => {
   it("takes bs from a roll inside the plain-cast success window", () => {
-    assert.equal(bound(routeBounds([BS(0.98)]), 0, 0, typeKey("", "")), 1, "0.98 <= 0.985");
-    assert.equal(bound(routeBounds([BS(0.99)]), 0, 0, typeKey("", "")), 0, "0.99 > 0.985");
+    assert.equal(bound(bounds([BS(0.98)]), 0, 0, typeKey("", "")), BS_SCORE, "0.98 <= 0.985");
+    assert.equal(bound(bounds([BS(0.99)]), 0, 0, typeKey("", "")), 0, "0.99 > 0.985");
   });
 
   it("gates cf the same way and leaves ef ungated, since ef is the backfire buff", () => {
-    assert.equal(bound(routeBounds([CF(0.99)]), 0, 0, typeKey("", "")), 0, "cf needs a success");
-    assert.equal(bound(routeBounds([EF(0.99)]), 0, 0, typeKey("", "")), 1.3, "ef is a backfire");
+    assert.equal(bound(bounds([CF(0.99)]), 0, 0, typeKey("", "")), 0, "cf needs a success");
+    assert.equal(bound(bounds([EF(0.99)]), 0, 0, typeKey("", "")), EF_SCORE, "ef is a backfire");
   });
 
   it("raises the bar for every cookie the route is committed to keeping", () => {
     // One bs row, and the mandatory onscreen count each type implies.
-    const table = routeBounds([BS(0.9)]);
+    const table = bounds([BS(0.9)]);
 
     for (const type of ALL_TYPES) {
-      const expected = 0.9 <= successCeiling(mandatoryOnscreens(type)) ? 1 : 0;
+      const expected = 0.9 <= successCeiling(mandatoryOnscreens(type)) ? BS_SCORE : 0;
       assert.equal(bound(table, 0, 0, type), expected, type);
     }
 
@@ -278,18 +303,22 @@ describe("routeBounds(): success threshold and mandatory onscreens", () => {
   it("only counts a kept cookie when the buff is already held", () => {
     // `toKeep` alone is not enough: keeping a cookie the route has not earned
     // yet is not forced, so the mandatory count stays 0 and 0.9 still succeeds.
-    assert.equal(bound(routeBounds([BS(0.9)]), 0, 0, typeKey("", "cf")), 1);
-    assert.equal(bound(routeBounds([BS(0.9)]), 0, 0, typeKey("", "cfef")), 1);
+    assert.equal(bound(bounds([BS(0.9)]), 0, 0, typeKey("", "cf")), BS_SCORE);
+    assert.equal(bound(bounds([BS(0.9)]), 0, 0, typeKey("", "cfef")), BS_SCORE);
     // Holding cf and committing to keep it starts the route one cookie up.
-    assert.equal(bound(routeBounds([BS(0.9)]), 0, 0, typeKey("cf", "cf")), 0);
+    assert.equal(bound(bounds([BS(0.9)]), 0, 0, typeKey("cf", "cf")), 0);
   });
 
   it("keeps a held cf or ef worth nothing", () => {
-    const table = routeBounds([BS(0.5), CF(0.5), EF(0.5)]);
-    assert.equal(bound(table, 0, 0, typeKey("", "")), 3.7);
-    assert.equal(bound(table, 0, 0, typeKey("cf", "")), 2.3, "cf is already held");
-    assert.equal(bound(table, 0, 0, typeKey("ef", "")), 2.4, "ef is already held");
-    assert.equal(bound(table, 0, 0, typeKey("cfef", "")), 1, "only the bs is still worth anything");
+    const table = bounds([BS(0.5), CF(0.5), EF(0.5)]);
+    assert.equal(bound(table, 0, 0, typeKey("", "")), BS_SCORE + CF_SCORE + EF_SCORE);
+    assert.equal(bound(table, 0, 0, typeKey("cf", "")), BS_SCORE + EF_SCORE, "cf is already held");
+    assert.equal(bound(table, 0, 0, typeKey("ef", "")), BS_SCORE + CF_SCORE, "ef is already held");
+    assert.equal(
+      bound(table, 0, 0, typeKey("cfef", "")),
+      BS_SCORE,
+      "only the bs is still worth anything",
+    );
   });
 
   it("never scores more for a stricter toKeep (mandatory onscreens only ever hurt)", () => {
@@ -302,7 +331,7 @@ describe("routeBounds(): success threshold and mandatory onscreens", () => {
     ];
 
     for (const spells of corpus) {
-      const table = routeBounds(spells);
+      const table = bounds(spells);
       for (let row = 0; row < table.length; row++) {
         for (let gfthofs = 0; gfthofs < table[row]!.length; gfthofs++) {
           for (const existing of TYPE_PARTS) {
@@ -327,74 +356,86 @@ describe("routeBounds(): success threshold and mandatory onscreens", () => {
 describe("routeBounds(): g!fthof and resolve", () => {
   /** A g!fthof source followed by a row worth `score`, with no magic in the way. */
   const viaGfthof = (roll: number, spells: Spell[]): number =>
-    bound(routeBounds([G(roll), ...spells]), 0, 0, typeKey("", ""));
+    bound(bounds([G(roll), ...spells]), 0, 0, typeKey("", ""));
 
   it("opens the g!fthof action only inside the transmute window", () => {
     // Taking row 1's bs twice: once through the queued resolve, once through a
-    // direct cast, is worth 2. Anything the g!fthof cannot be cast on scores 1.
-    assert.equal(viaGfthof(GFD_FTHOF_MIN - 0.001, [BS(0.2)]), 1, "below the window");
-    assert.equal(viaGfthof(GFD_FTHOF_MIN, [BS(0.2)]), 2, "0.125 is inside the window");
-    assert.equal(viaGfthof(0.33, [BS(0.2)]), 2, "just below 1/3");
-    assert.equal(viaGfthof(GFD_FTHOF_MAX, [BS(0.2)]), 1, "1/3 is outside the half-open window");
+    // direct cast, is worth 2 * BS_SCORE. Anything the g!fthof cannot be cast on
+    // scores one bs.
+    assert.equal(viaGfthof(GFD_FTHOF_MIN - 0.001, [BS(0.2)]), BS_SCORE, "below the window");
+    assert.equal(viaGfthof(GFD_FTHOF_MIN, [BS(0.2)]), 2 * BS_SCORE, "0.125 is inside the window");
+    assert.equal(viaGfthof(0.33, [BS(0.2)]), 2 * BS_SCORE, "just below 1/3");
+    assert.equal(
+      viaGfthof(GFD_FTHOF_MAX, [BS(0.2)]),
+      BS_SCORE,
+      "1/3 is outside the half-open window",
+    );
   });
 
   it("needs a pending resolve before a resolve action can fire", () => {
     // No g!fthof source, so the bs is only reachable by a direct cast.
-    assert.equal(bound(routeBounds([BS(0.2)]), 0, 0, typeKey("", "")), 1);
+    assert.equal(bound(bounds([BS(0.2)]), 0, 0, typeKey("", "")), BS_SCORE);
     // A pre-supplied pending resolve on a bs row is worth one extra bs.
-    const table = routeBounds([G(0.2), BS(0.2)]);
-    assert.equal(bound(table, 1, 0, typeKey("", "")), 1, "no pending, direct cast only");
-    assert.equal(bound(table, 1, 1, typeKey("", "")), 2, "one pending resolve, then the cast");
+    const table = bounds([G(0.2), BS(0.2)]);
+    assert.equal(bound(table, 1, 0, typeKey("", "")), BS_SCORE, "no pending, direct cast only");
+    assert.equal(
+      bound(table, 1, 1, typeKey("", "")),
+      2 * BS_SCORE,
+      "one pending resolve, then the cast",
+    );
   });
 
   it("pays a resolved row twice for bs because resolve does not consume the row", () => {
-    const table = routeBounds([G(0.2), BS(0.2)]);
+    const table = bounds([G(0.2), BS(0.2)]);
 
-    assert.equal(bound(table, 0, 0, typeKey("", "")), 2);
+    assert.equal(bound(table, 0, 0, typeKey("", "")), 2 * BS_SCORE);
     assert.equal(
       bound(table, 1, 1, typeKey("", "")),
-      2,
-      "starting at the bs row with the resolve already queued is the same 2",
+      2 * BS_SCORE,
+      "starting at the bs row with the resolve already queued is the same 2 bs",
     );
   });
 
   it("cannot pay a resolved row twice for cf or ef", () => {
     // The resolve takes the buff and zeroes its score, so the follow-up direct
     // cast has nothing left to collect.
-    assert.equal(bound(routeBounds([G(0.2), CF(0.2)]), 0, 0, typeKey("", "")), 1.4);
-    assert.equal(bound(routeBounds([G(0.2), EF(0.2)]), 0, 0, typeKey("", "")), 1.3);
+    assert.equal(bound(bounds([G(0.2), CF(0.2)]), 0, 0, typeKey("", "")), CF_SCORE);
+    assert.equal(bound(bounds([G(0.2), EF(0.2)]), 0, 0, typeKey("", "")), EF_SCORE);
   });
 
   it("gates a g! resolve's success at roll 0.5, the backfiresGFD ceiling", () => {
-    const at = (roll: number): number =>
-      bound(routeBounds([G(0.2), BS(roll)]), 0, 0, typeKey("", ""));
+    const at = (roll: number): number => bound(bounds([G(0.2), BS(roll)]), 0, 0, typeKey("", ""));
 
-    assert.equal(at(0.4), 2, "inside the capped success window");
-    assert.equal(at(0.5), 1, "0.5 is a backfire for a g! resolve");
-    assert.equal(at(0.6), 1, "above the cap, only the direct cast is left");
+    assert.equal(at(0.4), 2 * BS_SCORE, "inside the capped success window");
+    assert.equal(at(0.5), BS_SCORE, "0.5 is a backfire for a g! resolve");
+    assert.equal(at(0.6), BS_SCORE, "above the cap, only the direct cast is left");
   });
 
   it("banks every queued resolve before the row is consumed", () => {
     // Two g!fthof sources queue two resolves, and the bs row can absorb both
     // before a direct cast closes the queue out.
-    const table = routeBounds([G(0.2), G(0.3), BS(0.2)]);
+    const table = bounds([G(0.2), G(0.3), BS(0.2)]);
 
-    assert.equal(bound(table, 0, 0, typeKey("", "")), 3);
-    assert.equal(bound(table, 2, 2, typeKey("", "")), 3, "same route, seen from the bs row");
-    assert.equal(bound(table, 2, 1, typeKey("", "")), 2);
-    assert.equal(bound(table, 2, 0, typeKey("", "")), 1);
+    assert.equal(bound(table, 0, 0, typeKey("", "")), 3 * BS_SCORE);
+    assert.equal(
+      bound(table, 2, 2, typeKey("", "")),
+      3 * BS_SCORE,
+      "same route, seen from the bs row",
+    );
+    assert.equal(bound(table, 2, 1, typeKey("", "")), 2 * BS_SCORE);
+    assert.equal(bound(table, 2, 0, typeKey("", "")), BS_SCORE);
   });
 
   it("cannot pay for a row whose effect is missing", () => {
     // A resolve strictly consumes a pending g!fthof, so it is only worth
     // spending on a row that pays. An empty row in between is skipped instead.
-    const table = routeBounds([G(0.2), G(0.3), BS(0.2)]);
+    const table = bounds([G(0.2), G(0.3), BS(0.2)]);
     assert.equal(
       bound(table, 1, 0, typeKey("", "")),
-      2,
+      2 * BS_SCORE,
       "skip the empty row, then one resolve and one cast",
     );
-    assert.equal(bound(table, 1, 1, typeKey("", "")), 3, "queue one more source first");
+    assert.equal(bound(table, 1, 1, typeKey("", "")), 3 * BS_SCORE, "queue one more source first");
   });
 });
 
@@ -412,7 +453,7 @@ describe("routeBounds(): invariants over a small corpus", () => {
     [BS(0.99), EF(0.99), CF(0.99)],
     [CF(GFD_FTHOF_MIN), G(GFD_FTHOF_MAX), BS(0.2), G(0.3)],
   ];
-  const tables = CORPUS.map((spells) => routeBounds(spells));
+  const tables = CORPUS.map((spells) => bounds(spells));
 
   it("is monotone in the row: starting earlier can only add options", () => {
     CORPUS.forEach((spells, index) => {
@@ -454,13 +495,13 @@ describe("routeBounds(): invariants over a small corpus", () => {
     CORPUS.forEach((spells, index) => {
       const table = tables[index]!;
       const directBs = spells.reduce(
-        (sum, spell) => sum + (spell.bs && spell.gfdRs <= successCeiling(0) ? 1 : 0),
+        (sum, spell) => sum + (spell.bs && spell.gfdRs <= successCeiling(0) ? BS_SCORE : 0),
         0,
       );
 
       assert.ok(
         bound(table, 0, 0, typeKey("", "")) >= directBs,
-        `corpus ${index}: the bound must cover at least ${directBs} direct bs`,
+        `corpus ${index}: the bound must cover at least ${directBs} score of direct bs`,
       );
     });
   });
@@ -474,12 +515,12 @@ describe("RouteBoundState: construction and purification", () => {
   const spells = [BS(0.5), CF(0.5), EF(0.5)];
 
   it("starts a plain route with every score available and nothing forced on screen", () => {
-    const state = new RouteBoundState(spells, 0, 0, typeKey("", ""));
+    const state = boundState(spells, 0, 0, typeKey("", ""));
 
     assert.equal(state.score, 0);
-    assert.equal(state.bsScore, 1);
-    assert.equal(state.cfScore, 1.4);
-    assert.equal(state.efScore, 1.3);
+    assert.equal(state.bsScore, BS_SCORE);
+    assert.equal(state.cfScore, CF_SCORE);
+    assert.equal(state.efScore, EF_SCORE);
     assert.equal(state.minOnscreens, 0);
     assert.equal(state.toKeep, "");
     assert.equal(state.row, 0);
@@ -487,22 +528,22 @@ describe("RouteBoundState: construction and purification", () => {
   });
 
   it("zeroes a held buff's score and charges one onscreen for keeping its cookie", () => {
-    const held = new RouteBoundState(spells, 0, 0, typeKey("cfef", "cfef"));
+    const held = boundState(spells, 0, 0, typeKey("cfef", "cfef"));
     assert.equal(held.cfScore, 0);
     assert.equal(held.efScore, 0);
     assert.equal(held.minOnscreens, 2);
     assert.equal(held.toKeep, "cfef");
 
-    const heldNotKept = new RouteBoundState(spells, 0, 0, typeKey("cfef", ""));
+    const heldNotKept = boundState(spells, 0, 0, typeKey("cfef", ""));
     assert.equal(heldNotKept.minOnscreens, 0, "holding a buff does not force its cookie to stay");
 
-    const keptNotHeld = new RouteBoundState(spells, 0, 0, typeKey("", "cfef"));
+    const keptNotHeld = boundState(spells, 0, 0, typeKey("", "cfef"));
     assert.equal(keptNotHeld.minOnscreens, 0, "a cookie cannot be kept before its buff is earned");
   });
 
   it("counts a success window that shrinks by 0.15 per mandatory onscreen", () => {
     const at = (type: PossibleEvaluations, roll: number): boolean =>
-      new RouteBoundState(spells, 0, 0, type).possibleToSucceed(roll);
+      boundState(spells, 0, 0, type).possibleToSucceed(roll);
 
     const none = typeKey("", "");
     const one = typeKey("cf", "cf");
@@ -525,7 +566,7 @@ describe("RouteBoundState: construction and purification", () => {
       createSpell({ dfBs: true, bs: true, gfdRs: 0.5 }),
       createSpell({ bs: true, cf: true, gfdRs: 0.9 }),
     ];
-    const state = new RouteBoundState(raw, 0, 0, typeKey("", ""));
+    const state = boundState(raw, 0, 0, typeKey("", ""));
     const purified = state.spells;
 
     assert.equal(purified[0]!.bs, false, "0.99 cannot succeed");
@@ -541,7 +582,7 @@ describe("RouteBoundState: construction and purification", () => {
     // The middle row only carries ef, so a spent score hides it from the
     // affected column but leaves the other buff exactly as the queue had it.
     const raw = [CF(0.5), EF(0.5), createSpell({ cf: true, ef: true, gfdRs: 0.5 })];
-    const noCf = new RouteBoundState(raw, 0, 0, typeKey("cf", ""));
+    const noCf = boundState(raw, 0, 0, typeKey("cf", ""));
     assert.deepEqual(
       noCf.spells.map((spell) => spell.cf),
       [false, false, false],
@@ -551,7 +592,7 @@ describe("RouteBoundState: construction and purification", () => {
       [false, true, true],
     );
 
-    const noEf = new RouteBoundState(raw, 0, 0, typeKey("ef", ""));
+    const noEf = boundState(raw, 0, 0, typeKey("ef", ""));
     assert.deepEqual(
       noEf.spells.map((spell) => spell.ef),
       [false, false, false],
@@ -563,7 +604,7 @@ describe("RouteBoundState: construction and purification", () => {
   });
 
   it("keeps the raw queue when constructed without a type, for duplicate() to build on", () => {
-    const state = new RouteBoundState(spells, 0, 0);
+    const state = boundState(spells, 0, 0);
     assert.equal(
       state.spells,
       spells,
@@ -574,7 +615,7 @@ describe("RouteBoundState: construction and purification", () => {
   });
 
   it("duplicates every field without sharing the scalars", () => {
-    const source = new RouteBoundState(spells, 1, 2, typeKey("cf", "cf"));
+    const source = boundState(spells, 1, 2, typeKey("cf", "cf"));
     source.score = 5;
 
     const copy = source.duplicate();
@@ -584,9 +625,9 @@ describe("RouteBoundState: construction and purification", () => {
     assert.equal(copy.row, 1);
     assert.equal(copy.gfthofs, 2);
     assert.equal(copy.score, 5);
-    assert.equal(copy.bsScore, 1);
+    assert.equal(copy.bsScore, BS_SCORE);
     assert.equal(copy.cfScore, 0);
-    assert.equal(copy.efScore, 1.3);
+    assert.equal(copy.efScore, EF_SCORE);
     assert.equal(copy.minOnscreens, 1);
     assert.equal(copy.toKeep, "cf");
 
@@ -597,7 +638,7 @@ describe("RouteBoundState: construction and purification", () => {
   });
 
   it("tracks its position independently of the shared queue", () => {
-    const state = new RouteBoundState(spells, 0, 0, typeKey("", ""));
+    const state = boundState(spells, 0, 0, typeKey("", ""));
 
     assert.equal(state.ended(), false);
     assert.equal(state.peek(), state.spells[0]);
@@ -650,7 +691,7 @@ describe("SimpleActions: action contracts", () => {
   }
 
   const start = (roll: number, flags: Partial<Spell>, type: PossibleEvaluations): RouteBoundState =>
-    new RouteBoundState([createSpell({ ...flags, gfdRs: roll })], 0, 0, type);
+    boundState([createSpell({ ...flags, gfdRs: roll })], 0, 0, type);
 
   it("exposes exactly the documented action names", () => {
     assert.deepEqual(
@@ -673,7 +714,7 @@ describe("SimpleActions: action contracts", () => {
       start(0.2, {}, typeKey("", "")),
       start(0.2, { bs: true }, typeKey("cf", "cf")),
       start(0.9, { cf: true, ef: true }, typeKey("cf", "cfef")),
-      new RouteBoundState([G(0.2), BS(0.2)], 1, 1, typeKey("", "ef")),
+      boundState([G(0.2), BS(0.2)], 1, 1, typeKey("", "ef")),
     ];
 
     for (const state of states) {
@@ -689,7 +730,7 @@ describe("SimpleActions: action contracts", () => {
     const state = start(0.5, { bs: true }, typeKey("", ""));
     const after = run(state, "fthof-bs");
 
-    assert.equal(after.score, 1);
+    assert.equal(after.score, BS_SCORE);
     assert.equal(after.row, 1, "a plain cast consumes the row it was cast on");
     assert.equal(after.gfthofs, 0);
     assert.equal(after.minOnscreens, state.minOnscreens, "bs is not a kept cookie");
@@ -699,7 +740,7 @@ describe("SimpleActions: action contracts", () => {
 
   it("[fthof-cf] pays cf once and forces its cookie to stay when asked to keep it", () => {
     const plain = run(start(0.5, { cf: true }, typeKey("", "")), "fthof-cf");
-    assert.equal(plain.score, 1.4);
+    assert.equal(plain.score, CF_SCORE);
     assert.equal(plain.cfScore, 0, "cf is one-shot");
     assert.equal(plain.row, 1);
     assert.equal(plain.minOnscreens, 0, "toKeep did not ask for the cookie");
@@ -714,13 +755,13 @@ describe("SimpleActions: action contracts", () => {
 
   it("[fthof-ef] pays ef on any roll, because ef is the backfire outcome", () => {
     const calm = run(start(0.2, { ef: true }, typeKey("", "ef")), "fthof-ef");
-    assert.equal(calm.score, 1.3);
+    assert.equal(calm.score, EF_SCORE);
     assert.equal(calm.efScore, 0);
     assert.equal(calm.minOnscreens, 1);
     assert.equal(calm.row, 1);
 
     const backfire = run(start(0.99, { ef: true }, typeKey("", "")), "fthof-ef");
-    assert.equal(backfire.score, 1.3, "a roll a plain cast could never turn into a success");
+    assert.equal(backfire.score, EF_SCORE, "a roll a plain cast could never turn into a success");
 
     const spent = start(0.99, { ef: true }, typeKey("", ""));
     spent.efScore = 0;
@@ -741,63 +782,53 @@ describe("SimpleActions: action contracts", () => {
   });
 
   it("[resolve-bs] pays bs without consuming the row, and only inside the g! success window", () => {
-    const state = new RouteBoundState([G(0.2), BS(0.2)], 1, 1, typeKey("", ""));
+    const state = boundState([G(0.2), BS(0.2)], 1, 1, typeKey("", ""));
     const after = run(state, "resolve-bs");
 
-    assert.equal(after.score, 1);
+    assert.equal(after.score, BS_SCORE);
     assert.equal(after.gfthofs, 0, "one resolve settles one g!fthof");
     assert.equal(after.row, 1, "the row survives the resolve");
     assert.equal(after.minOnscreens, 0, "bs is not a kept cookie");
 
     const resolve = action("resolve-bs");
-    assert.equal(
-      resolve.able(new RouteBoundState([BS(0.2)], 0, 0, typeKey("", ""))),
-      false,
-      "no pending",
-    );
-    assert.equal(resolve.able(new RouteBoundState([BS(0.4)], 0, 1, typeKey("", ""))), true);
-    assert.equal(resolve.able(new RouteBoundState([BS(0.5)], 0, 1, typeKey("", ""))), false);
-    assert.equal(resolve.able(new RouteBoundState([CF(0.2)], 0, 1, typeKey("", ""))), false);
+    assert.equal(resolve.able(boundState([BS(0.2)], 0, 0, typeKey("", ""))), false, "no pending");
+    assert.equal(resolve.able(boundState([BS(0.4)], 0, 1, typeKey("", ""))), true);
+    assert.equal(resolve.able(boundState([BS(0.5)], 0, 1, typeKey("", ""))), false);
+    assert.equal(resolve.able(boundState([CF(0.2)], 0, 1, typeKey("", ""))), false);
   });
 
   it("[resolve-cf] pays cf once, keeps its cookie when asked, and clears the pending resolve", () => {
-    const after = run(
-      new RouteBoundState([G(0.2), CF(0.2)], 1, 1, typeKey("", "cf")),
-      "resolve-cf",
-    );
-    assert.equal(after.score, 1.4);
+    const after = run(boundState([G(0.2), CF(0.2)], 1, 1, typeKey("", "cf")), "resolve-cf");
+    assert.equal(after.score, CF_SCORE);
     assert.equal(after.cfScore, 0);
     assert.equal(after.gfthofs, 0);
     assert.equal(after.row, 1);
     assert.equal(after.minOnscreens, 1);
 
-    const spent = new RouteBoundState([G(0.2), CF(0.2)], 1, 1, typeKey("", ""));
+    const spent = boundState([G(0.2), CF(0.2)], 1, 1, typeKey("", ""));
     spent.cfScore = 0;
     assert.equal(action("resolve-cf").able(spent), false, "no score left to pay with");
     assert.equal(
-      action("resolve-cf").able(new RouteBoundState([G(0.2), CF(0.6)], 1, 1, typeKey("", ""))),
+      action("resolve-cf").able(boundState([G(0.2), CF(0.6)], 1, 1, typeKey("", ""))),
       false,
       "outside the capped g! success window",
     );
   });
 
   it("[resolve-ef] pays ef on any roll and clears the pending resolve", () => {
-    const after = run(
-      new RouteBoundState([G(0.2), EF(0.99)], 1, 2, typeKey("", "ef")),
-      "resolve-ef",
-    );
-    assert.equal(after.score, 1.3);
+    const after = run(boundState([G(0.2), EF(0.99)], 1, 2, typeKey("", "ef")), "resolve-ef");
+    assert.equal(after.score, EF_SCORE);
     assert.equal(after.efScore, 0);
     assert.equal(after.gfthofs, 1, "only one of the two pending resolves is spent");
     assert.equal(after.row, 1);
     assert.equal(after.minOnscreens, 1);
 
-    const noPending = new RouteBoundState([EF(0.5)], 0, 0, typeKey("", ""));
+    const noPending = boundState([EF(0.5)], 0, 0, typeKey("", ""));
     assert.equal(action("resolve-ef").able(noPending), false);
   });
 
   it("[skip] only advances the row", () => {
-    const state = new RouteBoundState([G(0.2), BS(0.2)], 0, 1, typeKey("cf", "cf"));
+    const state = boundState([G(0.2), BS(0.2)], 0, 1, typeKey("cf", "cf"));
     const after = run(state, "skip");
 
     assert.equal(after.row, 1);
@@ -805,7 +836,7 @@ describe("SimpleActions: action contracts", () => {
     assert.equal(after.gfthofs, 1, "skipping leaves the queue alone");
     assert.equal(after.minOnscreens, state.minOnscreens);
 
-    assert.equal(action("skip").able(new RouteBoundState([], 0, 0, typeKey("", ""))), false);
+    assert.equal(action("skip").able(boundState([], 0, 0, typeKey("", ""))), false);
   });
 });
 
@@ -814,22 +845,16 @@ describe("SimpleActions: action contracts", () => {
  * -------------------------------------------------------------------------- */
 
 describe("route.ts: the bound table as the search's ceiling", () => {
-  it("installs routeBounds(spells) as the state's value evaluation list", () => {
-    const spells = [G(0.2), BS(0.2), CF(0.5)];
-    const state = new RouteState(null, spells, 200, 0, 200, 0);
-
-    assert.equal(
-      state.initializeValueEvaluationList(),
-      state,
-      "it chains like the old initializer",
-    );
-    assert.deepEqual(state.valueEvaluationList, routeBounds(spells));
-  });
+  /** The profile these states run at, so their own weight matches `bounds`. */
+  const RESTRICTIONS = { siAllowed: false, rbAllowed: false, bsScore: BS_SCORE };
+  /** A state at that profile, with its value evaluation list already built. */
+  const stateFor = (spells: Spell[], spellIndex: number): RouteState =>
+    new RouteState(null, spells, 200, spellIndex, 200, 0, RouteState.initializeValueEvaluationList(spells, RESTRICTIONS), RESTRICTIONS);
 
   it("looks up the row for the buffs the state already holds", () => {
     const spells = [BS(0.5), CF(0.5)];
-    const table = routeBounds(spells);
-    const state = new RouteState(null, spells, 200, 0, 200, 0).initializeValueEvaluationList();
+    const table = bounds(spells);
+    const state = stateFor(spells, 0);
 
     assert.equal(
       state.currentMaxValue(),
@@ -853,8 +878,8 @@ describe("route.ts: the bound table as the search's ceiling", () => {
 
   it("counts only queued FTHOF resolves when it picks the pending slot", () => {
     const spells = [G(0.2), BS(0.2)];
-    const table = routeBounds(spells);
-    const state = new RouteState(null, spells, 200, 1, 200, 0).initializeValueEvaluationList();
+    const table = bounds(spells);
+    const state = stateFor(spells, 1);
 
     state.addResolve(0, 0, SpellIndices.RA);
     assert.equal(
@@ -871,13 +896,13 @@ describe("route.ts: the bound table as the search's ceiling", () => {
   });
 
   it("reports NaN when the table cannot answer", () => {
-    const empty = new RouteState(null, [], 200, 0, 200, 0).initializeValueEvaluationList();
+    const empty = stateFor([], 0);
     assert.ok(Number.isNaN(empty.currentMaxValue()), "an empty queue has no row 0");
 
-    const past = new RouteState(null, [BS(0.5)], 200, 1, 200, 0).initializeValueEvaluationList();
+    const past = stateFor([BS(0.5)], 1);
     assert.ok(Number.isNaN(past.currentMaxValue()), "the queue is exhausted");
 
-    const tooMany = new RouteState(null, [BS(0.5)], 200, 0, 200, 0).initializeValueEvaluationList();
+    const tooMany = stateFor([BS(0.5)], 0);
     tooMany.addResolve(0, 0, SpellIndices.FTHOF);
     assert.ok(
       Number.isNaN(tooMany.currentMaxValue()),
@@ -888,8 +913,8 @@ describe("route.ts: the bound table as the search's ceiling", () => {
   it("scores the straightforward walk when no g!fthof payment can be doubled", () => {
     // Four rows, the only g!fthof sources are the two the effects sit on, so a
     // g!fthof cast has to give up more than the queued resolve can pay back and
-    // the best route is the plain walk: 1 + 1.4 + 1.3 + 1.
+    // the best route is the plain walk: 2 * BS_SCORE + CF_SCORE + EF_SCORE.
     const spells = [BS(0.2), CF(0.3), EF(0.4), BS(0.6)];
-    assert.equal(bound(routeBounds(spells), 0, 0, typeKey("", "")), 4.7);
+    assert.equal(bound(bounds(spells), 0, 0, typeKey("", "")), 2 * BS_SCORE + CF_SCORE + EF_SCORE);
   });
 });
