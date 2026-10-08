@@ -2,7 +2,6 @@ import type { PossibleEvaluations } from "./microrouter";
 import routeBounds from "./microrouter";
 import { maxMagicToTowerCount } from "./seedgen";
 import { RangedTransmuteGuides, getRangeFromRS } from "./tables";
-import { bsScoreFor, DEFAULT_BS_MULT } from "../../lib/spell";
 
 export interface Spell {
     bs: boolean;
@@ -521,7 +520,7 @@ export interface RouteStep {
  * What one Building Special scores when the caller does not name a multiplier:
  * the form's own default, which the score scale puts at 20.
  */
-const DEFAULT_BS_SCORE = bsScoreFor(DEFAULT_BS_MULT);
+//const DEFAULT_BS_SCORE = bsScoreFor(DEFAULT_BS_MULT);
 export class RouteState {
     constructor(public parent: RouteState | null, 
         public spells: Spell[], 
@@ -554,6 +553,7 @@ export class RouteState {
     backfireMult: 1 | 1.01 | 1.1 | 1.11 = 1;
     costMult: 1 | 0.99 | 0.9 | 0.89 = 1;
     setRestrictions(restrictions: RouteInput["restrictions"]) {
+        this.restrictions = restrictions;
         this.backfireMult = 1 + (restrictions.siAllowed ? 0.1 : 0) + (restrictions.rbAllowed ? 0.01 : 0) as (1 | 1.01 | 1.1 | 1.11);
         this.costMult = 1 - (restrictions.siAllowed ? 0.1 : 0) - (restrictions.rbAllowed ? 0.01 : 0) as (1 | 0.99 | 0.9 | 0.89);
         return this;

@@ -846,10 +846,10 @@ describe("SimpleActions: action contracts", () => {
 
 describe("route.ts: the bound table as the search's ceiling", () => {
   /** The profile these states run at, so their own weight matches `bounds`. */
-  const RESTRICTIONS = { siAllowed: false, rbAllowed: false, bsScore: BS_SCORE };
+  const RESTRICTIONS = { siAllowed: false, rbAllowed: false, bsScore: BS_SCORE, minMaxMagic: 0 };
   /** A state at that profile, with its value evaluation list already built. */
   const stateFor = (spells: Spell[], spellIndex: number): RouteState =>
-    new RouteState(null, spells, 200, spellIndex, 200, 0, RouteState.initializeValueEvaluationList(spells, RESTRICTIONS), RESTRICTIONS);
+    new RouteState(null, spells, 200, 200, spellIndex, 200, 0, RouteState.initializeValueEvaluationList(spells, RESTRICTIONS), RESTRICTIONS);
 
   it("looks up the row for the buffs the state already holds", () => {
     const spells = [BS(0.5), CF(0.5)];

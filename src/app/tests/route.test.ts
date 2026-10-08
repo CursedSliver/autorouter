@@ -41,6 +41,8 @@ const DEFAULT_RESTRICTIONS = {
   siAllowed: true,
   rbAllowed: true,
   bsScore: TEST_BS_SCORE,
+  // These tests route without a tower level, so the max magic floor is no floor.
+  minMaxMagic: 0,
 } as const;
 
 /** `new RouteState(...)` with the default restrictions already applied. */
@@ -53,7 +55,7 @@ function routeState(
   refills: 0 | 1 | 2,
   restrictions: typeof DEFAULT_RESTRICTIONS = DEFAULT_RESTRICTIONS
 ): RouteState {
-  return new RouteState(parent, spells, currentMagic, spellIndex, metamax, refills, null, restrictions);
+  return new RouteState(parent, spells, currentMagic, currentMagic, spellIndex, metamax, refills, null, restrictions);
 }
 
 const actionByName = new Map<string, Action>(Actions.map((action) => [action.name, action]));
@@ -126,6 +128,7 @@ describe("route(): state and action contracts", () => {
       siAllowed: true,
       rbAllowed: true,
       bsScore: 6,
+      minMaxMagic: 0,
     });
     for (const buff of ["bs", "bs", "cf", "ef", "clot"] as const) lighter.addBuff(buff);
     assert.equal(lighter.currentValue(), 2 * 6 + 58 + 56 - 6, "a x2 bs is worth 6");
@@ -1189,6 +1192,7 @@ describe("route(): restrictions", () => {
       const state = routeState(null, [createSpell(B(0.84))], 150, 0, 200, 0).setRestrictions({
         ...profile.flags,
         bsScore: TEST_BS_SCORE,
+        minMaxMagic: 0,
       });
 
       assert.ok(
@@ -1219,6 +1223,7 @@ describe("route(): restrictions", () => {
       const state = routeState(null, [createSpell(B(0.5))], 5, 0, 5, 0).setRestrictions({
         ...flags,
         bsScore: TEST_BS_SCORE,
+        minMaxMagic: 0,
       });
       return GFD_ACTIONS.filter((name) => actAction(state, name).performed);
     };
@@ -1240,6 +1245,7 @@ describe("route(): restrictions", () => {
         siAllowed: false,
         rbAllowed: false,
         bsScore: TEST_BS_SCORE,
+        minMaxMagic: 0,
       }),
       "g!cbg",
     );
